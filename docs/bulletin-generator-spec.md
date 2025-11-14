@@ -1,0 +1,3 @@
+# Bulletin Generator Spec
+
+(placeholder)
