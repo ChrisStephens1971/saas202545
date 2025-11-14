@@ -7,12 +7,12 @@
     "hasGreeted": false,
     "setupComplete": false,
     "currentSprint": null,
-    "phase": "planning"
+    "phase": "foundation"
   },
   "workflow": {
-    "currentPhase": "planning",
-    "phasesCompleted": [],
-    "lastPhaseTransition": null,
+    "currentPhase": "foundation",
+    "phasesCompleted": ["planning"],
+    "lastPhaseTransition": "2025-11-14",
     "checklistSource": ".project-workflow.json"
   },
   "metadata": {
