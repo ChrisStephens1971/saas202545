@@ -91,14 +91,13 @@ async function seed() {
     nextSunday.setDate(nextSunday.getDate() + (7 - nextSunday.getDay()));
     nextSunday.setHours(10, 0, 0, 0); // 10 AM
 
-    const bulletinResult = await pool.query(`
+    await pool.query(`
       INSERT INTO bulletin_issue (tenant_id, issue_date, status)
       VALUES ($1, $2, 'draft')
       ON CONFLICT (tenant_id, issue_date) DO UPDATE SET status = EXCLUDED.status
       RETURNING id
     `, [tenantId, nextSunday]);
 
-    const bulletinId = bulletinResult.rows[0].id;
     console.log(`✓ Created bulletin for ${nextSunday.toDateString()}`);
 
     // Insert service items
