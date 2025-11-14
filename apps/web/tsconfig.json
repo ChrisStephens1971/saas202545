@@ -10,6 +10,10 @@
     "isolatedModules": true,
     "noEmit": true,
     "incremental": true,
+    "skipLibCheck": true,
+    "declaration": false,
+    "declarationMap": false,
+    "composite": false,
     "plugins": [
       {
         "name": "next"
