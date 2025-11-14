@@ -1,7 +1,9 @@
 import { Pool, PoolConfig } from 'pg';
 import dotenv from 'dotenv';
+import { resolve } from 'path';
 
-dotenv.config();
+// Load .env from project root
+dotenv.config({ path: resolve(__dirname, '../../../.env') });
 
 export interface DatabaseConfig extends PoolConfig {
   connectionString?: string;

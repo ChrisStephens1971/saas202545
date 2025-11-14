@@ -298,7 +298,7 @@ CREATE TABLE announcement (
 
 CREATE INDEX idx_announcement_tenant ON announcement(tenant_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_announcement_active ON announcement(tenant_id, is_active, priority DESC, starts_at DESC)
-  WHERE deleted_at IS NULL AND expires_at IS NULL OR expires_at > NOW();
+  WHERE deleted_at IS NULL;
 CREATE INDEX idx_announcement_expires ON announcement(expires_at) WHERE is_active = true AND deleted_at IS NULL;
 
 ALTER TABLE announcement ENABLE ROW LEVEL SECURITY;

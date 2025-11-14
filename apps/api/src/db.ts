@@ -1,5 +1,9 @@
 import { Pool, QueryResult, QueryResultRow } from 'pg';
 import { logger } from './utils/logger';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 /**
  * Database client singleton
