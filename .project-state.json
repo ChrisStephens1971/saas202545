@@ -4,45 +4,10 @@
   "templateType": "azure",
   "version": "2.1",
   "state": {
-  },
-  "workflow": {
-    "currentPhase": "planning",
-    "phasesCompleted": [],
-    "lastPhaseTransition": null,
-    "checklistSource": ".project-workflow.json"
-  },
     "hasGreeted": false,
-  },
-  "workflow": {
-    "currentPhase": "planning",
-    "phasesCompleted": [],
-    "lastPhaseTransition": null,
-    "checklistSource": ".project-workflow.json"
-  },
     "setupComplete": false,
-  },
-  "workflow": {
-    "currentPhase": "planning",
-    "phasesCompleted": [],
-    "lastPhaseTransition": null,
-    "checklistSource": ".project-workflow.json"
-  },
     "currentSprint": null,
-  },
-  "workflow": {
-    "currentPhase": "planning",
-    "phasesCompleted": [],
-    "lastPhaseTransition": null,
-    "checklistSource": ".project-workflow.json"
-  },
     "phase": "planning"
-  },
-  "workflow": {
-    "currentPhase": "planning",
-    "phasesCompleted": [],
-    "lastPhaseTransition": null,
-    "checklistSource": ".project-workflow.json"
-  },
   },
   "workflow": {
     "currentPhase": "planning",
@@ -57,10 +22,10 @@
     "tenantModel": "subdomain"
   },
   "ports": {
-    "frontend": "3045",
-    "backend": "8045",
-    "postgres": "5445",
-    "redis": "6445",
-    "mongo": "27045"
+    "frontend": 3045,
+    "backend": 8045,
+    "postgres": 5445,
+    "redis": 6445,
+    "mongo": 27045
   }
 }
