@@ -5,13 +5,13 @@
   "version": "2.1",
   "state": {
     "hasGreeted": false,
-    "setupComplete": false,
-    "currentSprint": null,
-    "phase": "foundation"
+    "setupComplete": true,
+    "currentSprint": 1,
+    "phase": "development"
   },
   "workflow": {
-    "currentPhase": "foundation",
-    "phasesCompleted": ["planning"],
+    "currentPhase": "development",
+    "phasesCompleted": ["planning", "foundation"],
     "lastPhaseTransition": "2025-11-14",
     "checklistSource": ".project-workflow.json"
   },
