@@ -14,7 +14,7 @@ export const bulletinsRouter = router({
         offset: z.number().min(0).default(0),
       })
     )
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input, ctx: _ctx }) => {
       // TODO: Implement database query
       return {
         bulletins: [],
@@ -27,7 +27,7 @@ export const bulletinsRouter = router({
   // Get single bulletin by ID
   get: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input, ctx: _ctx }) => {
       // TODO: Implement database query
       return null;
     }),
@@ -39,11 +39,11 @@ export const bulletinsRouter = router({
         serviceDate: z.string().datetime(),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx: _ctx }) => {
       // TODO: Implement database insert
       return {
         id: 'placeholder-uuid',
-        tenantId: ctx.tenantId!,
+        tenantId: _ctx.tenantId!,
         serviceDate: new Date(input.serviceDate),
         status: 'draft' as const,
         lockedAt: null,
@@ -66,7 +66,7 @@ export const bulletinsRouter = router({
         status: BulletinStatusSchema.optional(),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx: _ctx }) => {
       // TODO: Implement database update
       return { success: true };
     }),
@@ -74,7 +74,7 @@ export const bulletinsRouter = router({
   // Delete bulletin (soft delete)
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx: _ctx }) => {
       // TODO: Implement soft delete
       return { success: true };
     }),
@@ -82,7 +82,7 @@ export const bulletinsRouter = router({
   // Lock bulletin (Admin only - requires re-auth in production)
   lock: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx: _ctx }) => {
       // TODO: Check admin role
       // TODO: Validate all required fields
       // TODO: Generate artifacts (PDF, slides)

@@ -10,7 +10,7 @@ export const eventsRouter = router({
         limit: z.number().min(1).max(100).default(50),
       })
     )
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input, ctx: _ctx }) => {
       // TODO: Implement database query
       return {
         events: [],
@@ -28,7 +28,7 @@ export const eventsRouter = router({
         location: z.string().optional(),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx: _ctx }) => {
       // TODO: Implement database insert
       return { id: 'placeholder-id', ...input };
     }),

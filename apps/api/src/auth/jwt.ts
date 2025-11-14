@@ -3,7 +3,7 @@ import { AuthToken, User } from './types';
 // TODO: Replace with proper NextAuth + Azure AD B2C implementation (see artifacts/P4_middleware.ts)
 // This is a placeholder for the Foundation phase
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+// const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const JWT_EXPIRY = 12 * 60 * 60; // 12 hours
 
 export function generateToken(user: User): string {
