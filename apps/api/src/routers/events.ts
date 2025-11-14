@@ -10,7 +10,7 @@ export const eventsRouter = router({
         limit: z.number().min(1).max(100).default(50),
       })
     )
-    .query(async ({ input, ctx: _ctx }) => {
+    .query(async ({ input: _input, ctx: _ctx }) => {
       // TODO: Implement database query
       return {
         events: [],
