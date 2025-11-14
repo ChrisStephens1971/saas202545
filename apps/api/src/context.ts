@@ -11,7 +11,7 @@ export interface Context {
 
 export async function createContext({
   req,
-  res,
+  res: _res,
 }: CreateExpressContextOptions): Promise<Context> {
   // Extract tenant from subdomain or header
   const tenantId = req.headers['x-tenant-id'] as string | undefined;

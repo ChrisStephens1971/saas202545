@@ -19,7 +19,7 @@ export const serviceItemsRouter = router({
   // List service items for a bulletin
   list: protectedProcedure
     .input(z.object({ bulletinIssueId: z.string().uuid() }))
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input, ctx: _ctx }) => {
       // TODO: Implement database query
       return {
         items: [],
@@ -38,7 +38,7 @@ export const serviceItemsRouter = router({
         orderIndex: z.number().int().min(0),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx: _ctx }) => {
       // Validation: CCLI required for songs
       if (input.type === 'Song' && !input.ccliNumber) {
         throw new Error('CCLI number required for songs');
@@ -71,7 +71,7 @@ export const serviceItemsRouter = router({
         orderIndex: z.number().int().min(0).optional(),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx: _ctx }) => {
       // TODO: Implement database update
       return { success: true };
     }),
@@ -79,7 +79,7 @@ export const serviceItemsRouter = router({
   // Delete service item
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx: _ctx }) => {
       // TODO: Implement delete
       return { success: true };
     }),
@@ -97,7 +97,7 @@ export const serviceItemsRouter = router({
         ),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx: _ctx }) => {
       // TODO: Update order indices for all items
       return { success: true };
     }),

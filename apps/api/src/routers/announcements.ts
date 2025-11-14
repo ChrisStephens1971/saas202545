@@ -2,7 +2,7 @@ import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
 
 export const announcementsRouter = router({
-  listActive: protectedProcedure.query(async ({ ctx }) => {
+  listActive: protectedProcedure.query(async ({ ctx: _ctx }) => {
     // TODO: Implement database query for active announcements
     return {
       announcements: [],
@@ -19,7 +19,7 @@ export const announcementsRouter = router({
         expiresAt: z.string().datetime().optional(),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx: _ctx }) => {
       // TODO: Implement database insert with approval workflow
       return { id: 'placeholder-id', status: 'pending', ...input };
     }),
