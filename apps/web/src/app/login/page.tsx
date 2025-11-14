@@ -24,9 +24,22 @@ export default function LoginPage() {
       // TODO: Replace with actual authentication
       // For now, simulate login with dev-only JWT
       if (formData.email && formData.password) {
-        // Mock successful login
-        localStorage.setItem('auth-token', 'dev-token-placeholder');
-        localStorage.setItem('tenant-id', 'dev-tenant-id');
+        // Create a valid dev token with required payload structure
+        const tenantId = '753161b3-e698-46a6-965f-b2ef814c6874'; // Grace Community Church from seed data
+        const devTokenPayload = {
+          userId: 'dev-user-id',
+          role: 'admin',
+          tenantId: tenantId,
+          personId: null,
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + (12 * 60 * 60), // 12 hours
+        };
+
+        // Base64 encode the payload (matches API's dev JWT format)
+        const devToken = btoa(JSON.stringify(devTokenPayload));
+
+        localStorage.setItem('auth-token', devToken);
+        localStorage.setItem('tenant-id', tenantId);
         router.push('/dashboard');
       } else {
         setError('Email and password are required');
