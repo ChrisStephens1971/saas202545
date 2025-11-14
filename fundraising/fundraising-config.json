@@ -1,0 +1,297 @@
+{
+  "_instructions": "Fill in these values for your project. The JavaScript scripts will use this data to generate .docx files.",
+  "_placeholders_note": "{{PLACEHOLDERS}} like saas202545 will be replaced during project creation.",
+
+  "project": {
+    "name": "saas202545",
+    "productName": "[Your Product Name]",
+    "companyName": "[Your Company Name]",
+    "tagline": "[One-line description of your product]",
+    "date": "2025-11-14",
+    "founderName": "[Your Name]",
+    "founderTitle": "Founder & CEO",
+    "founderEmail": "[your.email@company.com]",
+    "founderPhone": "[Your Phone]"
+  },
+
+  "problem": {
+    "targetMarket": "[Who has this problem - e.g., 'Healthcare providers', 'Small businesses']",
+    "marketSize": "[Number of potential customers - e.g., '500,000 clinics']",
+    "painPoints": [
+      {
+        "title": "[Pain point 1 - e.g., 'Manual password resets']",
+        "description": "[Metric - e.g., '40% of IT tickets']",
+        "impact": "[Cost/time - e.g., '$50K/year wasted']"
+      },
+      {
+        "title": "[Pain point 2]",
+        "description": "[Description]",
+        "impact": "[Impact]"
+      },
+      {
+        "title": "[Pain point 3]",
+        "description": "[Description]",
+        "impact": "[Impact]"
+      }
+    ],
+    "consequences": "[What happens if unsolved - e.g., 'Board liability, legal issues']"
+  },
+
+  "solution": {
+    "deliveryModel": "[e.g., 'Multi-tenant SaaS platform', 'Mobile app', 'API']",
+    "valueProposition": "[Core benefit - e.g., 'Zero-tolerance error prevention']",
+    "features": [
+      {
+        "name": "[Feature 1 name - e.g., 'Biometric Authentication']",
+        "description": "[What it does]",
+        "benefit": "[Measurable outcome - e.g., 'Eliminates password resets']"
+      },
+      {
+        "name": "[Feature 2 name]",
+        "description": "[What it does]",
+        "benefit": "[Benefit]"
+      },
+      {
+        "name": "[Feature 3 name]",
+        "description": "[What it does]",
+        "benefit": "[Benefit]"
+      }
+    ]
+  },
+
+  "market": {
+    "tam": {
+      "size": "[Total market size in customers - e.g., '370,000']",
+      "unit": "[Type of customer - e.g., 'clinics', 'businesses']",
+      "arpu": "[Annual revenue per customer - e.g., '$5,000']",
+      "total": "[TAM in dollars - e.g., '$1.85 billion']"
+    },
+    "sam": {
+      "size": "[Serviceable market - e.g., '100,000']",
+      "description": "[Segment - e.g., 'Providers with 50+ staff']",
+      "total": "[SAM in dollars - e.g., '$500 million']"
+    },
+    "som": {
+      "percentage": "[Target % in 5 years - e.g., '1%']",
+      "arr": "[Target ARR - e.g., '$5 million']"
+    },
+    "underserved": {
+      "percentUsingStatusQuo": "[e.g., '90%']",
+      "statusQuo": "[Current solution - e.g., 'spreadsheets']",
+      "noDominantPlayer": true
+    }
+  },
+
+  "businessModel": {
+    "model": "[e.g., 'SaaS Subscription', 'Usage-based', 'Freemium']",
+    "pricingTiers": [
+      {
+        "name": "Tier 1",
+        "sizeMetric": "[e.g., '50-100 staff', '1-10 users']",
+        "monthlyPrice": "[e.g., '$400']",
+        "annualPrice": "[e.g., '$4,800']"
+      },
+      {
+        "name": "Tier 2",
+        "sizeMetric": "[Size range]",
+        "monthlyPrice": "[Monthly price]",
+        "annualPrice": "[Annual price]"
+      },
+      {
+        "name": "Tier 3",
+        "sizeMetric": "[Size range]",
+        "monthlyPrice": "[Monthly price]",
+        "annualPrice": "[Annual price]"
+      }
+    ],
+    "customerSavings": {
+      "currentCost": "[Current cost range - e.g., '$70K-$120K/year']",
+      "yourPrice": "[Your price range - e.g., '$5K-$10K/year']",
+      "savings": "[Savings amount - e.g., '$60K-$110K/year']",
+      "percentage": "[Savings % - e.g., '85-92%']"
+    },
+    "unitEconomics": {
+      "averageMRR": "[e.g., '$500']",
+      "ltv": "[e.g., '$25,500']",
+      "ltvCalculation": "[e.g., '$500/mo × 60 months × 85% margin']",
+      "cac": "[e.g., '$3,000']",
+      "cacPaybackMonths": "[e.g., '7']",
+      "ltvCacRatio": "[e.g., '8.5x']",
+      "grossMargin": "[e.g., '85%']"
+    }
+  },
+
+  "financials": {
+    "projections": {
+      "year0": { "arr": "$0", "customers": "0", "headcount": "1", "burn": "-$15K" },
+      "year1": { "arr": "[Y1 ARR]", "customers": "[#]", "headcount": "[#]", "burn": "[Burn]" },
+      "year2": { "arr": "[Y2 ARR]", "customers": "[#]", "headcount": "[#]", "burn": "[Burn]", "growth": "[%]" },
+      "year3": { "arr": "[Y3 ARR]", "customers": "[#]", "headcount": "[#]", "burn": "[Burn]", "growth": "[%]" },
+      "year4": { "arr": "[Y4 ARR]", "customers": "[#]", "headcount": "[#]", "burn": "[Burn]", "growth": "[%]" },
+      "year5": { "arr": "[Y5 ARR]", "customers": "[#]", "headcount": "[#]", "burn": "$0", "growth": "[%]" }
+    },
+    "fundingRounds": [
+      {
+        "round": "Pre-Seed",
+        "amount": "[e.g., '$400,000']",
+        "structure": "[e.g., 'SAFE']",
+        "valuationCap": "[e.g., '$1.5M-$2M']",
+        "discount": "[e.g., '20%']"
+      },
+      {
+        "round": "Seed",
+        "amount": "[Amount]",
+        "structure": "[Structure]",
+        "preMoney": "[Valuation]"
+      }
+    ],
+    "useOfFunds": {
+      "total": "[Total amount - e.g., '$400,000']",
+      "runway": "[Months - e.g., '12']",
+      "breakdown": [
+        { "category": "Engineering", "amount": "[Amount]", "percentage": "[%]", "description": "[e.g., '2 engineers × 6 months']" },
+        { "category": "Founder Salary", "amount": "[Amount]", "percentage": "[%]", "description": "[e.g., '6 months']" },
+        { "category": "Design/Product", "amount": "[Amount]", "percentage": "[%]", "description": "[Description]" },
+        { "category": "Infrastructure", "amount": "[Amount]", "percentage": "[%]", "description": "[e.g., 'AWS, tools']" },
+        { "category": "Legal/Compliance", "amount": "[Amount]", "percentage": "[%]", "description": "[Description]" },
+        { "category": "Marketing/Sales", "amount": "[Amount]", "percentage": "[%]", "description": "[Description]" },
+        { "category": "Buffer", "amount": "[Amount]", "percentage": "[%]", "description": "[e.g., '20% contingency']" }
+      ]
+    }
+  },
+
+  "competition": {
+    "competitors": [
+      {
+        "name": "[Competitor 1]",
+        "focus": "[Their market]",
+        "weakness": "[Their weakness]",
+        "yourAdvantage": "[How you beat them]"
+      },
+      {
+        "name": "[Competitor 2]",
+        "focus": "[Their market]",
+        "weakness": "[Their weakness]",
+        "yourAdvantage": "[Your advantage]"
+      },
+      {
+        "name": "Status Quo",
+        "focus": "[Current approach - e.g., 'Spreadsheets']",
+        "weakness": "[Pain points]",
+        "yourAdvantage": "[Your fix]"
+      }
+    ],
+    "moat": [
+      "[Moat 1 - e.g., 'Vertical specialization: Healthcare only']",
+      "[Moat 2 - e.g., 'HIPAA expertise and compliance']",
+      "[Moat 3 - e.g., 'EHR integrations (2-3 year head start)']"
+    ]
+  },
+
+  "traction": {
+    "stage": "[e.g., 'Pre-revenue, MVP in development', 'Early revenue']",
+    "completed": [
+      "[e.g., '50+ customer discovery interviews']",
+      "[e.g., 'Technical architecture designed']"
+    ],
+    "inProgress": [
+      "[e.g., 'MVP development (launching Month 3)']",
+      "[e.g., 'Pilot program agreements (3-5 customers)']"
+    ],
+    "next6Months": [
+      "[e.g., 'Launch MVP with 3 pilot customers']",
+      "[e.g., 'Achieve $50K ARR']",
+      "[e.g., 'Apply to Y Combinator']"
+    ]
+  },
+
+  "milestones": [
+    {
+      "month": "3",
+      "title": "[Milestone 1 - e.g., 'MVP Launch']",
+      "outcomes": [
+        "[Outcome 1]",
+        "[Outcome 2]"
+      ]
+    },
+    {
+      "month": "6",
+      "title": "[Milestone 2]",
+      "outcomes": ["[Outcome 1]", "[Outcome 2]"]
+    },
+    {
+      "month": "9",
+      "title": "[Milestone 3]",
+      "outcomes": ["[Outcome 1]", "[Outcome 2]"]
+    },
+    {
+      "month": "12",
+      "title": "[Milestone 4]",
+      "outcomes": ["[Outcome 1]", "[Outcome 2]"]
+    }
+  ],
+
+  "exitStrategy": {
+    "type": "[e.g., 'Acquisition', 'IPO', 'Merger']",
+    "timeline": "[e.g., '5-7 years']",
+    "targetValuation": "[e.g., '$50M-$150M']",
+    "targetAcquirers": [
+      {
+        "name": "[Company 1]",
+        "marketCap": "[e.g., '$1.5B']",
+        "rationale": "[Why they'd acquire - e.g., 'Add healthcare compliance to portfolio']"
+      },
+      {
+        "name": "[Company 2]",
+        "marketCap": "[Market cap]",
+        "rationale": "[Rationale]"
+      }
+    ],
+    "comparableExits": [
+      {
+        "company": "[Company acquired]",
+        "amount": "[e.g., '$580M']",
+        "year": "[e.g., '2019']"
+      },
+      {
+        "company": "[Company IPO]",
+        "amount": "[Amount]",
+        "year": "[Year]"
+      }
+    ]
+  },
+
+  "team": {
+    "founder": {
+      "name": "[Your Name]",
+      "title": "Founder & CEO",
+      "background": "[Years] [industry] experience at [companies]",
+      "keyAccomplishments": [
+        "[Accomplishment 1]",
+        "[Accomplishment 2]"
+      ],
+      "whyQualified": "[Why uniquely qualified for this]"
+    },
+    "advisors": [
+      {
+        "name": "[Advisor name]",
+        "credentials": "[Their background]",
+        "valueAdd": "[How they help]"
+      }
+    ],
+    "hiringPlan": [
+      {
+        "role": "[Role 1 - e.g., 'CTO']",
+        "equity": "[e.g., '25%']",
+        "salary": "[e.g., '$120K-$140K']",
+        "timing": "[When to hire]"
+      },
+      {
+        "role": "[Role 2]",
+        "equity": "[Equity]",
+        "salary": "[Salary]",
+        "timing": "[Timing]"
+      }
+    ]
+  }
+}

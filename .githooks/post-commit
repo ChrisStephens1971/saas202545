@@ -1,0 +1,88 @@
+#!/bin/bash
+#
+# Post-commit hook for automated documentation and database sync
+#
+# Optionally generates:
+# - Session documentation (if enabled)
+# - Changelog updates (if enabled)
+# - Database sync (automatic when .project-state.json changes)
+#
+# Configuration:
+#   Create .git/hooks-config with:
+#     AUTO_SESSION_DOC=true
+#     AUTO_CHANGELOG=true
+#     AUTO_DB_SYNC=true (default: true)
+#
+# Installation:
+#   git config core.hooksPath .githooks
+#
+# Author: Template System
+# Created: 2025-11-02
+# Updated: 2025-11-09
+
+# Load configuration if it exists
+CONFIG_FILE=".git/hooks-config"
+if [ -f "$CONFIG_FILE" ]; then
+    source "$CONFIG_FILE"
+fi
+
+# Default: Enable auto database sync
+AUTO_DB_SYNC=${AUTO_DB_SYNC:-true}
+
+# Auto-generate session doc (if enabled)
+if [ "$AUTO_SESSION_DOC" = "true" ]; then
+    echo "📝 Auto-generating session documentation..."
+    if [ -f "C:/devop/.template-system/scripts/generate_session_doc.py" ]; then
+        python C:/devop/.template-system/scripts/generate_session_doc.py \
+            --project-path "$(pwd)" \
+            --since-hours 24 \
+            2>/dev/null || echo "⚠️  Session doc generation skipped (enable in hooks-config)"
+    fi
+fi
+
+# Auto-update changelog (if enabled)
+if [ "$AUTO_CHANGELOG" = "true" ]; then
+    echo "📋 Auto-updating changelog..."
+    if [ -f "C:/devop/.template-system/scripts/generate_changelog.py" ]; then
+        python C:/devop/.template-system/scripts/generate_changelog.py \
+            --project-path "$(pwd)" \
+            --unreleased \
+            2>/dev/null || echo "⚠️  Changelog generation skipped (enable in hooks-config)"
+    fi
+fi
+
+# Auto-sync progress to dashboard (if enabled)
+if [ "$AUTO_PROGRESS_SYNC" = "true" ]; then
+    echo "📊 Auto-syncing progress to dashboard..."
+    if [ -f "C:/devop/.template-system/scripts/sync_project_progress.py" ]; then
+        python C:/devop/.template-system/scripts/sync_project_progress.py \
+            --project-path "$(pwd)" \
+            2>/dev/null || echo "⚠️  Progress sync skipped (enable in hooks-config)"
+    fi
+fi
+
+# Auto-sync database when .project-state.json changes (enabled by default)
+if [ "$AUTO_DB_SYNC" = "true" ] || [ "$AUTO_DB_SYNC" = "" ]; then
+    # Check if .project-state.json was in this commit
+    if git diff HEAD~1 HEAD --name-only 2>/dev/null | grep -q ".project-state.json"; then
+        echo "🔄 Syncing project metadata to dashboard..."
+
+        # Get project ID from current directory
+        PROJECT_ID=$(basename "$(pwd)")
+
+        # Run sync script
+        SYNC_SCRIPT="C:/devop/.template-system/scripts/sync-project-database-v2.py"
+
+        if [ -f "$SYNC_SCRIPT" ]; then
+            SYNC_OUTPUT=$(python3 "$SYNC_SCRIPT" "$PROJECT_ID" 2>&1)
+            
+            # Show only success/failure line
+            echo "$SYNC_OUTPUT" | grep -E "\[(OK|FAIL|SKIP)\]|Summary:" || echo "  ✓ Metadata synced to dashboard"
+        else
+            echo "  ⚠️  Sync script not found"
+            echo "  Run manually: python3 C:/devop/.template-system/scripts/sync-project-database-v2.py $PROJECT_ID"
+        fi
+    fi
+fi
+
+exit 0

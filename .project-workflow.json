@@ -1,0 +1,333 @@
+{
+  "workflowVersion": "1.0",
+  "templateVersion": "2.1",
+  "currentPhase": "planning",
+  "currentStep": null,
+  "startedDate": "2025-11-14",
+  "lastUpdated": "2025-11-14",
+  "phases": {
+    "planning": {
+      "status": "not-started",
+      "completionPercent": 0,
+      "startedDate": null,
+      "completedDate": null,
+      "estimatedDuration": "1-2 weeks",
+      "checklist": [
+        {
+          "id": "plan-01",
+          "task": "Complete discovery questions (team, build approach, concept)",
+          "status": "pending",
+          "template": "_START-HERE.md",
+          "completedDate": null
+        },
+        {
+          "id": "plan-02",
+          "task": "Create product roadmap (Now/Next/Later)",
+          "status": "pending",
+          "template": "product/roadmap-template.md",
+          "completedDate": null
+        },
+        {
+          "id": "plan-03",
+          "task": "Define architecture & technical decisions",
+          "status": "pending",
+          "template": "technical/adr-template.md",
+          "completedDate": null
+        },
+        {
+          "id": "plan-04",
+          "task": "Set OKRs and success metrics",
+          "status": "pending",
+          "template": "business/okr-template.md",
+          "completedDate": null
+        },
+        {
+          "id": "plan-05",
+          "task": "Create Sprint 1 plan",
+          "status": "pending",
+          "template": "sprints/sprint-plan-template.md",
+          "completedDate": null
+        }
+      ]
+    },
+    "foundation": {
+      "status": "not-started",
+      "completionPercent": 0,
+      "startedDate": null,
+      "completedDate": null,
+      "estimatedDuration": "1-2 weeks",
+      "checklist": [
+        {
+          "id": "found-01",
+          "task": "Initialize project structure & dependencies",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "found-02",
+          "task": "Set up database schema & migrations",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "found-03",
+          "task": "Implement authentication & authorization",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "found-04",
+          "task": "Set up CI/CD pipeline (GitHub Actions)",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "found-05",
+          "task": "Configure testing framework",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "found-06",
+          "task": "Verify all GitHub Actions passing",
+          "status": "pending",
+          "script": "bash scripts/check-github-health.sh",
+          "completedDate": null
+        }
+      ]
+    },
+    "development": {
+      "status": "not-started",
+      "completionPercent": 0,
+      "startedDate": null,
+      "completedDate": null,
+      "estimatedDuration": "4-8 weeks",
+      "checklist": [
+        {
+          "id": "dev-01",
+          "task": "Complete Sprint 1 (core features)",
+          "status": "pending",
+          "template": "sprints/sprint-plan-template.md",
+          "completedDate": null
+        },
+        {
+          "id": "dev-02",
+          "task": "Complete Sprint 2 (key workflows)",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "dev-03",
+          "task": "Complete Sprint 3 (integrations)",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "dev-04",
+          "task": "Code review & refactoring",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "dev-05",
+          "task": "Maintain GitHub Actions green (zero failures)",
+          "status": "pending",
+          "script": "bash scripts/check-github-health.sh",
+          "completedDate": null
+        }
+      ]
+    },
+    "testing": {
+      "status": "not-started",
+      "completionPercent": 0,
+      "startedDate": null,
+      "completedDate": null,
+      "estimatedDuration": "2-3 weeks",
+      "checklist": [
+        {
+          "id": "test-01",
+          "task": "Achieve 80%+ test coverage",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "test-02",
+          "task": "Run performance benchmarks & optimize",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "test-03",
+          "task": "Complete security audit",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "test-04",
+          "task": "User acceptance testing",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "test-05",
+          "task": "Fix all critical & high-priority bugs",
+          "status": "pending",
+          "completedDate": null
+        }
+      ]
+    },
+    "launch": {
+      "status": "not-started",
+      "completionPercent": 0,
+      "startedDate": null,
+      "completedDate": null,
+      "estimatedDuration": "1-2 weeks",
+      "checklist": [
+        {
+          "id": "launch-01",
+          "task": "Set up production environment",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "launch-02",
+          "task": "Configure monitoring & alerting",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "launch-03",
+          "task": "Complete deployment runbook",
+          "status": "pending",
+          "template": "workflows/runbook-template.md",
+          "completedDate": null
+        },
+        {
+          "id": "launch-04",
+          "task": "Execute go-live checklist",
+          "status": "pending",
+          "completedDate": null
+        },
+        {
+          "id": "launch-05",
+          "task": "Post-launch monitoring (48 hours)",
+          "status": "pending",
+          "completedDate": null
+        }
+      ]
+    }
+  },
+  "dailyPractices": {
+    "githubHealthCheck": {
+      "enabled": true,
+      "frequency": "daily",
+      "lastCheck": null,
+      "script": "bash scripts/check-github-health.sh",
+      "description": "Check GitHub Actions status and fix failures immediately"
+    },
+    "commitFrequency": {
+      "target": "daily",
+      "lastCommit": null,
+      "description": "Commit code at least once per day"
+    },
+    "documentationUpdate": {
+      "enabled": true,
+      "lastUpdate": null,
+      "description": "Update documentation as code changes"
+    },
+    "workflowProgressUpdate": {
+      "enabled": true,
+      "lastUpdate": null,
+      "description": "Update .project-workflow.json task status daily"
+    }
+  },
+  "weeklyPractices": {
+    "sprintReview": {
+      "enabled": true,
+      "dayOfWeek": "Friday",
+      "duration": "1-2 hours",
+      "template": "sprints/retrospective-template.md",
+      "description": "Review sprint progress and hold retrospective"
+    },
+    "sprintPlanning": {
+      "enabled": true,
+      "dayOfWeek": "Monday",
+      "duration": "1-2 hours",
+      "template": "sprints/sprint-plan-template.md",
+      "description": "Plan next sprint and set goals"
+    },
+    "securityCheck": {
+      "enabled": true,
+      "frequency": "weekly",
+      "lastCheck": null,
+      "script": "gh api repos/{owner}/{repo}/dependabot/alerts",
+      "description": "Check for security vulnerabilities and dependency updates"
+    }
+  },
+  "phaseTransitions": {
+    "planning_to_foundation": {
+      "criteria": [
+        "Roadmap complete",
+        "Architecture decided",
+        "Sprint 1 plan ready"
+      ],
+      "recommended": true,
+      "mandatory": false
+    },
+    "foundation_to_development": {
+      "criteria": [
+        "Project scaffolded",
+        "Database connected",
+        "Authentication working",
+        "GitHub Actions green",
+        "Tests passing"
+      ],
+      "recommended": true,
+      "mandatory": false
+    },
+    "development_to_testing": {
+      "criteria": [
+        "Core features complete",
+        "Test coverage >= 60%",
+        "GitHub Actions green for 3 days",
+        "No known critical bugs"
+      ],
+      "recommended": true,
+      "mandatory": false
+    },
+    "testing_to_launch": {
+      "criteria": [
+        "Test coverage >= 80%",
+        "Performance targets met",
+        "Security audit passed",
+        "Critical bugs fixed"
+      ],
+      "recommended": true,
+      "mandatory": false
+    },
+    "launch_to_production": {
+      "criteria": [
+        "Production environment ready",
+        "Monitoring active",
+        "Deployment runbook complete",
+        "Go-live checklist complete"
+      ],
+      "recommended": true,
+      "mandatory": true
+    }
+  },
+  "metadata": {
+    "projectName": "saas202545",
+    "templateType": "azure",
+    "buildApproach": null,
+    "teamSize": null,
+    "estimatedLaunchDate": null
+  },
+  "notes": {
+    "workflowGuide": "See PROJECT-WORKFLOW.md for complete lifecycle guidance",
+    "dailyPractices": "See workflows/DAILY-PRACTICES.md for detailed daily routines",
+    "githubMonitoring": "See GITHUB-HEALTH-MONITORING.md for GitHub health practices",
+    "taskUpdates": "Update task status as work completes: pending -> in-progress -> completed",
+    "phaseTransitions": "Move to next phase when criteria met (not mandatory, use judgment)"
+  }
+}
