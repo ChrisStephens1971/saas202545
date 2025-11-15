@@ -2,12 +2,12 @@
 
 **Sprint:** Authentication & Authorization
 **Started:** 2025-11-15
-**Status:** 🟡 In Progress (40% complete)
-**Build:** ✅ Production build passing (32 routes, 23.8s)
+**Status:** 🟡 In Progress (50% complete)
+**Build:** ✅ Production build passing (33 routes, 26.1s)
 
 ---
 
-## Completed Tasks (40%)
+## Completed Tasks (50%)
 
 ### 1. ✅ NextAuth.js Infrastructure Setup
 - Installed `next-auth@beta` and `@auth/core` packages
@@ -62,28 +62,30 @@
 - ✅ Build time: 23.817s
 - ✅ All Sprint 5 + 6 pages building
 
+### 9. ✅ Header Component Authentication
+**Completed:** 2025-11-15
+- Replaced localStorage auth with NextAuth `useAuth()` and `useRole()` hooks
+- Implemented role-based navigation filtering
+- Admin/Editor see: Dashboard, Bulletins, People, Events, Prayers, Donations, Communications
+- Regular users see: Dashboard, Bulletins, People, Events, Prayers
+- Kiosk users see: Attendance Check-In only
+- Unauthenticated users see: No navigation (just Sign In button)
+- Added loading state with skeleton placeholder
+- Shows user name and role from session
+
+### 10. ✅ tRPC Context NextAuth Integration
+**Completed:** 2025-11-15
+- Created `/api/auth/token` route to generate JWT from NextAuth session
+- Updated `TRPCProvider` to use NextAuth session and fetch JWT token
+- Implemented proper JWT signing/verification with jsonwebtoken
+- Aligned role types between frontend (NextAuth) and backend (tRPC)
+- Added role-based middleware: `adminProcedure`, `editorProcedure`, `submitterProcedure`, `viewerProcedure`, `kioskProcedure`
+- Configured `NEXTAUTH_SECRET` in both web and API environments
+- Production build passing (33 routes compiled)
+
 ---
 
-## Remaining Tasks (60%)
-
-### 9. ⏳ Update Header Component
-**Priority:** High
-**Estimated Time:** 1 hour
-**Tasks:**
-- Replace "Sign Out" button with auth-aware buttons
-- Show user name and role from session
-- "Sign In" button when not authenticated
-- "Sign Out" button when authenticated
-- Hide navigation links based on authentication status
-
-### 10. ⏳ Update tRPC Context
-**Priority:** High
-**Estimated Time:** 2 hours
-**Tasks:**
-- Extract session from NextAuth in `createContext()`
-- Add `userId`, `role`, `tenantId` to context
-- Update all routers to use context values
-- Add role validation middleware
+## Remaining Tasks (50%)
 
 ### 11. ⏳ Replace Hardcoded Admin Flags
 **Priority:** High
@@ -161,17 +163,17 @@
 
 ## Metrics
 
-**Progress:** 40% complete (8/20 tasks)
-**Time Spent:** ~4 hours
-**Remaining Estimate:** ~10 hours
-**Expected Completion:** 2025-11-18 (3 days)
+**Progress:** 50% complete (10/20 tasks)
+**Time Spent:** ~6 hours
+**Remaining Estimate:** ~8 hours
+**Expected Completion:** 2025-11-17 (2 days)
 
 **Code Stats:**
-- Files created: 7
-- Files modified: 11
-- Lines of code added: ~900
+- Files created: 8
+- Files modified: 15
+- Lines of code added: ~1050
 - TypeScript errors fixed: 12
-- Routes building: 32/32
+- Routes building: 33/33
 
 ---
 
@@ -194,13 +196,15 @@
 3. ✅ Create auth infrastructure
 4. ✅ Test production build
 5. ✅ Update project state
-6. ⏳ **NEXT:** Update Header component with auth buttons
+6. ✅ Update Header component with auth buttons
+7. ✅ Update tRPC context with NextAuth integration
+8. ⏳ **NEXT:** Replace hardcoded admin flags in pages
 
 **Next Session:**
-1. Complete Header updates
-2. Update tRPC context
-3. Replace hardcoded admin flags
-4. Test authentication flow
+1. Replace hardcoded admin flags across all pages
+2. Add page-level authentication checks
+3. Create protected route wrappers
+4. End-to-end authentication testing with all 5 roles
 
 ---
 
@@ -208,8 +212,10 @@
 
 1. **5684157** - feat: begin Sprint 6 - authentication infrastructure with NextAuth.js
 2. **ed3296e** - fix: resolve Sprint 3 TypeScript errors and NextAuth build issues
+3. **5f4eae3** - feat: add role-based navigation and authentication to Header component
+4. **75194ae** - feat: integrate tRPC with NextAuth for authenticated API calls
 
-**Branch:** master (21 commits ahead of origin/master)
+**Branch:** master (23 commits ahead of origin/master)
 
 ---
 
