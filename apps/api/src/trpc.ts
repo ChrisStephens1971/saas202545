@@ -2,6 +2,7 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import { Context } from './context';
 import { logger } from './utils/logger';
+import { AppRole } from './auth/types';
 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
@@ -54,4 +55,38 @@ const hasTenant = t.middleware(({ ctx, next }) => {
   });
 });
 
+// Middleware for role-based access control
+const hasRole = (allowedRoles: AppRole[]) =>
+  t.middleware(({ ctx, next }) => {
+    if (!ctx.userRole) {
+      logger.warn('User role not found in context');
+      throw new TRPCError({ code: 'UNAUTHORIZED' });
+    }
+
+    if (!allowedRoles.includes(ctx.userRole)) {
+      logger.warn(`Access denied for role: ${ctx.userRole}`, {
+        allowedRoles,
+        userRole: ctx.userRole,
+      });
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Insufficient permissions',
+      });
+    }
+
+    return next({
+      ctx: {
+        ...ctx,
+        userRole: ctx.userRole,
+      },
+    });
+  });
+
 export const protectedProcedure = t.procedure.use(isAuthed).use(hasTenant);
+
+// Role-specific procedures
+export const adminProcedure = protectedProcedure.use(hasRole(['admin']));
+export const editorProcedure = protectedProcedure.use(hasRole(['admin', 'editor']));
+export const submitterProcedure = protectedProcedure.use(hasRole(['admin', 'editor', 'submitter']));
+export const viewerProcedure = protectedProcedure.use(hasRole(['admin', 'editor', 'submitter', 'viewer']));
+export const kioskProcedure = protectedProcedure.use(hasRole(['kiosk']));

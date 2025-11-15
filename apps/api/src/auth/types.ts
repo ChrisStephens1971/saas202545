@@ -1,4 +1,5 @@
-export type AppRole = 'Admin' | 'Editor' | 'Submitter' | 'Viewer' | 'Kiosk';
+// Role types aligned with NextAuth (lowercase)
+export type AppRole = 'admin' | 'editor' | 'submitter' | 'viewer' | 'kiosk';
 
 export interface User {
   id: string;
@@ -14,6 +15,6 @@ export interface AuthToken {
   role: AppRole;
   tenantId: string;
   personId: string;
-  iat: number;
-  exp: number;
+  iat?: number;
+  exp?: number;
 }
