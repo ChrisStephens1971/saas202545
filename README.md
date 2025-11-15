@@ -47,31 +47,35 @@ cd apps/web && npm run dev
 
 ## ✨ Features
 
-### ✅ Implemented (Sprint 1)
+### ✅ Implemented (Sprints 1-2)
 
 - **Multi-Tenant Architecture**: Row-Level Security (RLS) for data isolation
 - **Bulletins Management**: Create, edit, lock bulletins for Sunday worship
+- **Service Items**: Drag-and-drop order of worship with CCLI validation
+- **PDF Generation**: Basic bulletin PDF download with formatted output
 - **People Directory**: Manage members, attendees, and visitors
-- **Service Items**: Order of worship with CCLI number validation
-- **Events Calendar**: Schedule and manage church events
-- **Announcements**: Priority-based church announcements
+- **Events Calendar**: Month view calendar with event management
+- **Event Management**: Create, edit, delete events with RSVP support
+- **Announcements**: Priority-based with approval workflow
+- **Dashboard**: Real statistics, active announcements, quick actions
 - **Type-Safe API**: tRPC with full TypeScript inference
 - **Responsive UI**: Elder-first design (18px min font, 48px touch targets)
 - **Dev Authentication**: JWT-based auth (Azure AD B2C planned)
 
 ### 🚧 In Progress
 
-- [x] End-to-end bulletin creation flow
-- [x] Service items drag-and-drop UI
-- [ ] Dashboard with quick stats (basic version exists)
+- [ ] Forms builder
+- [ ] Attendance tracking
+- [ ] Groups management
 
 ### ⏳ Planned
 
-- [ ] PDF bulletin generation
 - [ ] Forms builder
 - [ ] Attendance tracking
 - [ ] Giving/donations
 - [ ] Groups management
+- [ ] Enhanced PDF templates
+- [ ] Slide generation for worship
 - [ ] Azure AD B2C authentication
 
 ---
@@ -359,11 +363,11 @@ Use conventional commits:
 - [x] Service items drag-and-drop UI
 - [x] End-to-end bulletin flow
 
-### Sprint 2 (Weeks 3-4)
-- [ ] Events calendar view
-- [ ] Announcements management
-- [ ] Dashboard with stats
-- [ ] PDF bulletin generation (basic)
+### Sprint 2 (✅ COMPLETED)
+- [x] Events calendar view
+- [x] Announcements management
+- [x] Dashboard with stats
+- [x] PDF bulletin generation (basic)
 
 ### Sprint 3 (Weeks 5-6)
 - [ ] Forms builder
