@@ -97,11 +97,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     : [
         // Production mode: Azure AD B2C
         AzureADB2CProvider({
-          tenantId: process.env.AZURE_AD_B2C_TENANT_NAME,
           clientId: process.env.AZURE_AD_B2C_CLIENT_ID!,
           clientSecret: process.env.AZURE_AD_B2C_CLIENT_SECRET!,
-          primaryUserFlow: process.env.AZURE_AD_B2C_PRIMARY_USER_FLOW,
-          authorization: { params: { scope: 'offline_access openid' } },
+          issuer: `https://${process.env.AZURE_AD_B2C_TENANT_NAME}.b2clogin.com/${process.env.AZURE_AD_B2C_TENANT_NAME}.onmicrosoft.com/${process.env.AZURE_AD_B2C_PRIMARY_USER_FLOW}/v2.0`,
         }),
       ],
   callbacks: {

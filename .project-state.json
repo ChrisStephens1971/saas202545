@@ -6,9 +6,10 @@
   "state": {
     "hasGreeted": false,
     "setupComplete": true,
-    "currentSprint": 5,
+    "currentSprint": 6,
     "phase": "development",
-    "sprintsCompleted": ["sprint-01-people-events", "sprint-02-bulletins", "sprint-03-forms-attendance-groups", "sprint-04-giving-donations", "sprint-05-communications-directory-prayers"]
+    "sprintsCompleted": ["sprint-01-people-events", "sprint-02-bulletins", "sprint-03-forms-attendance-groups", "sprint-04-giving-donations", "sprint-05-communications-directory-prayers"],
+    "sprintInProgress": "sprint-06-authentication-authorization"
   },
   "workflow": {
     "currentPhase": "development",

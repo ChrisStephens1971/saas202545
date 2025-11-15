@@ -13,7 +13,7 @@ export default function GroupDetailPage() {
   const [showAddMember, setShowAddMember] = useState(false);
   const [selectedPersonId, setSelectedPersonId] = useState('');
 
-  const { data: group, isLoading, error, refetch } = trpc.groups.get.useQuery({ id: groupId });
+  const { data: group, isLoading, error } = trpc.groups.get.useQuery({ id: groupId });
   const { data: members, refetch: refetchMembers } = trpc.groups.listMembers.useQuery({ groupId });
   const { data: peopleData } = trpc.people.list.useQuery({ limit: 100, offset: 0 });
 
