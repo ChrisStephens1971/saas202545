@@ -1,20 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent } from '@/components/ui/Card';
 import Link from 'next/link';
+import { useAuth, useRole } from '@/hooks/useAuth';
 
 export default function PeoplePage() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAdmin, isEditor } = useRole();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // TODO: Replace with real role check when Azure AD B2C is implemented
-  // For now, hardcoded to admin view. In production, check user.role
-  const isAdmin = true; // localStorage.getItem('user-role') === 'admin'
-  const [showAdminView, setShowAdminView] = useState(isAdmin);
+  // Determine if user has admin/editor access
+  const hasAdminAccess = isAdmin() || isEditor();
+  const [showAdminView, setShowAdminView] = useState(hasAdminAccess);
+
+  // Redirect unauthenticated users to login
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, authLoading, router]);
+
+  // Update admin view when auth changes
+  useEffect(() => {
+    setShowAdminView(hasAdminAccess);
+  }, [hasAdminAccess]);
 
   // Admin view: All people with full details
   const { data: adminData, isLoading: adminLoading, error: adminError } = trpc.people.list.useQuery({
@@ -43,6 +59,15 @@ export default function PeoplePage() {
     }, 300);
     return () => clearTimeout(timeout);
   };
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <p className="text-lg">Loading...</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -78,8 +103,8 @@ export default function PeoplePage() {
           )}
         </div>
         <div className="flex items-center gap-3">
-          {/* Admin View Toggle - TODO: Only show if user is admin */}
-          {isAdmin && (
+          {/* Admin View Toggle - Only shown to admins/editors */}
+          {hasAdminAccess && (
             <Button
               variant="outline"
               size="lg"
