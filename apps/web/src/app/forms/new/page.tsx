@@ -14,7 +14,7 @@ export default function NewFormPage() {
     description: '',
     allowMultipleSubmissions: false,
     requireLogin: false,
-    notificationEmail: '',
+    notification_email: '',
   });
   const [error, setError] = useState('');
 
@@ -39,9 +39,9 @@ export default function NewFormPage() {
     createForm.mutate({
       title: formData.title,
       description: formData.description || undefined,
-      allowMultipleSubmissions: formData.allowMultipleSubmissions,
-      requireLogin: formData.requireLogin,
-      notificationEmail: formData.notificationEmail || undefined,
+      allow_multiple_submissions: formData.allowMultipleSubmissions,
+      require_login: formData.requireLogin,
+      notification_email: formData.notification_email || undefined,
     });
   };
 
@@ -94,12 +94,12 @@ export default function NewFormPage() {
             <Input
               type="email"
               label="Notification Email (optional)"
-              value={formData.notificationEmail}
+              value={formData.notification_email}
               onChange={(e) =>
-                setFormData({ ...formData, notificationEmail: e.target.value })
+                setFormData({ ...formData, notification_email: e.target.value })
               }
               placeholder="admin@church.org"
-              helperText="Receive an email when someone submits this form"
+              // helperText="Receive an email when someone submits this form"
             />
 
             <div className="space-y-3">

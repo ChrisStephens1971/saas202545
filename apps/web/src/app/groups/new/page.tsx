@@ -13,9 +13,9 @@ export default function NewGroupPage() {
     name: '',
     description: '',
     category: '',
-    leaderId: '',
-    isPublic: true,
-    maxMembers: '',
+    leader_id: '',
+    is_public: true,
+    max_members: '',
   });
   const [error, setError] = useState('');
 
@@ -47,9 +47,9 @@ export default function NewGroupPage() {
       name: formData.name,
       description: formData.description || undefined,
       category: formData.category || undefined,
-      leaderId: formData.leaderId || undefined,
-      isPublic: formData.isPublic,
-      maxMembers: formData.maxMembers ? parseInt(formData.maxMembers) : undefined,
+      leader_id: formData.leader_id || undefined,
+      is_public: formData.is_public,
+      max_members: formData.max_members ? parseInt(formData.max_members) : undefined,
     });
   };
 
@@ -127,9 +127,9 @@ export default function NewGroupPage() {
                 </label>
                 <select
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  value={formData.leaderId}
+                  value={formData.leader_id}
                   onChange={(e) =>
-                    setFormData({ ...formData, leaderId: e.target.value })
+                    setFormData({ ...formData, leader_id: e.target.value })
                   }
                 >
                   <option value="">No leader assigned</option>
@@ -145,9 +145,9 @@ export default function NewGroupPage() {
             <Input
               type="number"
               label="Max Members (optional)"
-              value={formData.maxMembers}
+              value={formData.max_members}
               onChange={(e) =>
-                setFormData({ ...formData, maxMembers: e.target.value })
+                setFormData({ ...formData, max_members: e.target.value })
               }
               placeholder="Leave empty for unlimited"
               min="1"
@@ -157,9 +157,9 @@ export default function NewGroupPage() {
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={formData.isPublic}
+                  checked={formData.is_public}
                   onChange={(e) =>
-                    setFormData({ ...formData, isPublic: e.target.checked })
+                    setFormData({ ...formData, is_public: e.target.checked })
                   }
                   className="w-6 h-6"
                 />

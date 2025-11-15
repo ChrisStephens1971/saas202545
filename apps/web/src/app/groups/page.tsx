@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Card, CardContent } from '@/components/ui/Card';
 import Link from 'next/link';
 
