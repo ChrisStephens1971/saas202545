@@ -61,9 +61,9 @@ cd apps/web && npm run dev
 
 ### 🚧 In Progress
 
-- [ ] End-to-end bulletin creation flow
-- [ ] Service items drag-and-drop UI
-- [ ] Dashboard with quick stats
+- [x] End-to-end bulletin creation flow
+- [x] Service items drag-and-drop UI
+- [ ] Dashboard with quick stats (basic version exists)
 
 ### ⏳ Planned
 
@@ -352,12 +352,12 @@ Use conventional commits:
 
 ## 📋 Roadmap
 
-### Sprint 1 (Current - Weeks 1-2)
+### Sprint 1 (✅ COMPLETED)
 - [x] Database schema with RLS
 - [x] All 5 main routers implemented
 - [x] Frontend pages (bulletins, people)
-- [ ] Service items drag-and-drop UI
-- [ ] End-to-end bulletin flow
+- [x] Service items drag-and-drop UI
+- [x] End-to-end bulletin flow
 
 ### Sprint 2 (Weeks 3-4)
 - [ ] Events calendar view
