@@ -26,6 +26,10 @@ robocopy 'packages/database' 'temp_snapshot/packages/database' /E /XD node_modul
 Write-Host "Copying Documentation..." -ForegroundColor Yellow
 if (Test-Path 'docs') { robocopy 'docs' 'temp_snapshot/docs' /E /NFL /NDL /NJH /NJS /nc /ns /np }
 
+# Copy Sprints
+Write-Host "Copying Sprints..." -ForegroundColor Yellow
+if (Test-Path 'sprints') { robocopy 'sprints' 'temp_snapshot/sprints' /E /NFL /NDL /NJH /NJS /nc /ns /np }
+
 # Copy Infrastructure
 Write-Host "Copying Infrastructure..." -ForegroundColor Yellow
 if (Test-Path 'infrastructure') { robocopy 'infrastructure' 'temp_snapshot/infrastructure' /E /XD node_modules /NFL /NDL /NJH /NJS /nc /ns /np }
@@ -77,6 +81,7 @@ if (Test-Path 'repo_snapshot_for_review.zip') {
     Write-Host "  - apps/web (Frontend Web)" -ForegroundColor White
     Write-Host "  - packages/database (Database migrations)" -ForegroundColor White
     Write-Host "  - docs (Documentation)" -ForegroundColor White
+    Write-Host "  - sprints (Sprint planning & completion docs)" -ForegroundColor White
     Write-Host "  - Root configuration files" -ForegroundColor White
 } else {
     Write-Host "FAILED: Could not create archive" -ForegroundColor Red
