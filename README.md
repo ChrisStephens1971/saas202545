@@ -407,6 +407,6 @@ Built with:
 
 ---
 
-**Version**: 0.1.0 (Sprint 1)
-**Last Updated**: November 14, 2025
+**Version**: 0.2.0 (Sprint 2)
+**Last Updated**: November 15, 2025
 **Status**: In Active Development
