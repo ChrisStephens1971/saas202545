@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { ServiceItemForm } from '@/components/bulletins/ServiceItemForm';
 import { ServiceItemsList } from '@/components/bulletins/ServiceItemsList';
+import { generateBulletinPDF } from '@/lib/pdf/generateBulletinPDF';
 
 export default function BulletinDetailPage() {
   const params = useParams();
@@ -131,6 +132,18 @@ export default function BulletinDetailPage() {
     }
   };
 
+  const handleDownloadPDF = () => {
+    if (items.length === 0) {
+      alert('Cannot generate PDF: No service items added yet');
+      return;
+    }
+
+    generateBulletinPDF({
+      serviceDate: bulletin.serviceDate,
+      items: items,
+    });
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
@@ -170,11 +183,14 @@ export default function BulletinDetailPage() {
             <Button variant="secondary" onClick={() => router.push('/bulletins')}>
               Back to List
             </Button>
-            {!isLocked && (
-              <Button variant="primary" size="lg">
-                Preview
-              </Button>
-            )}
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={handleDownloadPDF}
+              disabled={items.length === 0}
+            >
+              📄 Download PDF
+            </Button>
           </div>
         </div>
       </div>
@@ -299,11 +315,16 @@ export default function BulletinDetailPage() {
                 </p>
               </div>
               <div className="flex gap-3">
-                <Button variant="primary" size="lg">
-                  Download PDF
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={handleDownloadPDF}
+                  disabled={items.length === 0}
+                >
+                  📄 Download PDF
                 </Button>
-                <Button variant="secondary" size="lg">
-                  Download Slides
+                <Button variant="secondary" size="lg" disabled>
+                  📽️ Download Slides (Coming Soon)
                 </Button>
               </div>
             </div>

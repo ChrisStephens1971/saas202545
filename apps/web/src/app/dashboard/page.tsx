@@ -6,9 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import Link from 'next/link';
 
 export default function DashboardPage() {
+  // Get upcoming events (next 30 days)
+  const startDate = new Date();
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() + 30);
+
   const { data: bulletins } = trpc.bulletins.list.useQuery({ limit: 5 });
   const { data: people } = trpc.people.list.useQuery({ limit: 5 });
-  const { data: events } = trpc.events.list.useQuery({ limit: 5 });
+  const { data: events } = trpc.events.list.useQuery({
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+    limit: 5
+  });
+  const { data: announcements } = trpc.announcements.listActive.useQuery();
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -58,6 +68,51 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      {/* Active Announcements */}
+      {announcements && announcements.announcements.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-4">📢 Active Announcements</h2>
+          <div className="space-y-3">
+            {announcements.announcements.slice(0, 3).map((announcement) => {
+              const getPriorityColor = (priority: string) => {
+                switch (priority) {
+                  case 'Urgent':
+                    return 'border-l-4 border-red-500 bg-red-50';
+                  case 'High':
+                    return 'border-l-4 border-orange-500 bg-orange-50';
+                  default:
+                    return 'border-l-4 border-blue-500 bg-blue-50';
+                }
+              };
+
+              return (
+                <Card key={announcement.id} className={getPriorityColor(announcement.priority)}>
+                  <CardContent className="py-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-lg font-bold">{announcement.title}</h3>
+                          {announcement.priority === 'Urgent' && <span className="text-red-600">🔴</span>}
+                          {announcement.priority === 'High' && <span className="text-orange-600">🟠</span>}
+                        </div>
+                        <p className="text-base text-gray-700">
+                          {announcement.body.length > 150
+                            ? `${announcement.body.substring(0, 150)}...`
+                            : announcement.body}
+                        </p>
+                      </div>
+                      <Link href={`/announcements/${announcement.id}`}>
+                        <Button variant="outline" size="sm">View</Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card variant="outlined">
@@ -68,6 +123,26 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {bulletins && bulletins.bulletins.length > 0 ? (
+              <div className="space-y-2 mb-4">
+                {bulletins.bulletins.slice(0, 3).map((bulletin) => (
+                  <Link key={bulletin.id} href={`/bulletins/${bulletin.id}`}>
+                    <div className="p-2 hover:bg-gray-100 rounded cursor-pointer">
+                      <p className="text-sm font-medium">
+                        {new Date(bulletin.serviceDate).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </p>
+                      <p className="text-xs text-gray-600 capitalize">{bulletin.status}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-600 mb-4">No bulletins yet</p>
+            )}
             <Link href="/bulletins">
               <Button variant="outline" className="w-full">
                 View All Bulletins
@@ -78,15 +153,35 @@ export default function DashboardPage() {
 
         <Card variant="outlined">
           <CardHeader>
-            <CardTitle>Church Members</CardTitle>
+            <CardTitle>Upcoming Events</CardTitle>
             <CardDescription>
-              {people?.total || 0} total people
+              {events?.events?.length || 0} in next 30 days
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Link href="/people">
+            {events && events.events.length > 0 ? (
+              <div className="space-y-2 mb-4">
+                {events.events.slice(0, 3).map((event) => (
+                  <Link key={event.id} href={`/events/${event.id}`}>
+                    <div className="p-2 hover:bg-gray-100 rounded cursor-pointer">
+                      <p className="text-sm font-medium truncate">{event.title}</p>
+                      <p className="text-xs text-gray-600">
+                        {new Date(event.startAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                        {event.allDay ? ' (All day)' : ` at ${new Date(event.startAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-600 mb-4">No upcoming events</p>
+            )}
+            <Link href="/events">
               <Button variant="outline" className="w-full">
-                View All People
+                View Calendar
               </Button>
             </Link>
           </CardContent>
@@ -94,15 +189,31 @@ export default function DashboardPage() {
 
         <Card variant="outlined">
           <CardHeader>
-            <CardTitle>Upcoming Events</CardTitle>
+            <CardTitle>Church Directory</CardTitle>
             <CardDescription>
-              {events?.total || 0} total events
+              {people?.total || 0} total people
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Link href="/events">
+            {people && people.people.length > 0 ? (
+              <div className="space-y-2 mb-4">
+                {people.people.slice(0, 3).map((person) => (
+                  <Link key={person.id} href={`/people/${person.id}`}>
+                    <div className="p-2 hover:bg-gray-100 rounded cursor-pointer">
+                      <p className="text-sm font-medium">
+                        {person.firstName} {person.lastName}
+                      </p>
+                      <p className="text-xs text-gray-600 capitalize">{person.membershipStatus}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-600 mb-4">No people yet</p>
+            )}
+            <Link href="/people">
               <Button variant="outline" className="w-full">
-                View All Events
+                View All People
               </Button>
             </Link>
           </CardContent>
