@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ServiceItemForm } from '@/components/bulletins/ServiceItemForm';
 import { ServiceItemsList } from '@/components/bulletins/ServiceItemsList';
 import { generateBulletinPDF } from '@/lib/pdf/generateBulletinPDF';
+import { ProtectedPage } from '@/components/auth/ProtectedPage';
 
 export default function BulletinDetailPage() {
   const params = useParams();
@@ -145,7 +146,8 @@ export default function BulletinDetailPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <ProtectedPage requiredRoles={['admin', 'editor']}>
+      <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex justify-between items-start">
@@ -331,6 +333,7 @@ export default function BulletinDetailPage() {
           </CardContent>
         </Card>
       )}
-    </div>
+      </div>
+    </ProtectedPage>
   );
 }

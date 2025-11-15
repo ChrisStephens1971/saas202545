@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { ProtectedPage } from '@/components/auth/ProtectedPage';
 
 export default function GroupDetailPage() {
   const params = useParams();
@@ -79,7 +80,8 @@ export default function GroupDetailPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <ProtectedPage requiredRoles={['admin', 'editor', 'submitter']}>
+      <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold mb-2">{group.name}</h1>
@@ -222,6 +224,7 @@ export default function GroupDetailPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </ProtectedPage>
   );
 }

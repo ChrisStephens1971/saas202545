@@ -6,6 +6,7 @@ import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { EventForm } from '@/components/events/EventForm';
+import { ProtectedPage } from '@/components/auth/ProtectedPage';
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -108,7 +109,8 @@ export default function EventDetailPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <ProtectedPage requiredRoles={['admin', 'editor', 'submitter']}>
+      <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex justify-between items-start">
@@ -229,6 +231,7 @@ export default function EventDetailPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </ProtectedPage>
   );
 }

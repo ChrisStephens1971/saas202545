@@ -6,6 +6,7 @@ import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { AnnouncementForm } from '@/components/announcements/AnnouncementForm';
+import { ProtectedPage } from '@/components/auth/ProtectedPage';
 
 export default function AnnouncementDetailPage() {
   const params = useParams();
@@ -119,7 +120,8 @@ export default function AnnouncementDetailPage() {
   const needsApproval = !announcement.approvedBy;
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <ProtectedPage requiredRoles={['admin', 'editor', 'submitter']}>
+      <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex justify-between items-start">
@@ -281,6 +283,7 @@ export default function AnnouncementDetailPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </ProtectedPage>
   );
 }
