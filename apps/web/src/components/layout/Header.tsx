@@ -48,6 +48,24 @@ export function Header() {
             >
               Events
             </Link>
+            <Link
+              href="/prayers"
+              className="text-lg font-medium text-gray-700 hover:text-primary-600 transition-colors"
+            >
+              Prayers
+            </Link>
+            <Link
+              href="/donations"
+              className="text-lg font-medium text-gray-700 hover:text-primary-600 transition-colors"
+            >
+              Donations
+            </Link>
+            <Link
+              href="/communications"
+              className="text-lg font-medium text-gray-700 hover:text-primary-600 transition-colors"
+            >
+              Communications
+            </Link>
           </nav>
 
           {/* User Menu */}

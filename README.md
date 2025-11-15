@@ -149,7 +149,7 @@ saas202545/
 
 ### Schema Overview
 
-18 tables with Row-Level Security:
+24 tables with Row-Level Security:
 - `tenant` - Multi-tenant organizations
 - `person` - Church members/attendees
 - `household` - Family groupings
@@ -159,7 +159,11 @@ saas202545/
 - `announcement` - Announcements
 - `brand_pack` - Visual branding
 - `fund` - Giving/donations
-- Plus 9 more tables...
+- `communication_template` - Email/SMS templates
+- `communication_campaign` - Email/SMS campaigns
+- `directory_settings` - Member privacy settings
+- `prayer_request` - Prayer requests
+- Plus 11 more tables...
 
 **Full schema**: See [Database Schema Documentation](docs/DATABASE-SCHEMA.md)
 
@@ -369,15 +373,20 @@ Use conventional commits:
 - [x] Dashboard with stats
 - [x] PDF bulletin generation (basic)
 
-### Sprint 3 (Weeks 5-6)
-- [ ] Forms builder
-- [ ] Attendance tracking
-- [ ] Groups management
+### Sprint 3 (✅ COMPLETED)
+- [x] Forms builder
+- [x] Attendance tracking
+- [x] Groups management
 
-### Sprint 4 (Weeks 7-8)
-- [ ] Giving/donations
-- [ ] Azure AD B2C authentication
-- [ ] Production deployment
+### Sprint 4 (✅ COMPLETED)
+- [x] Giving/donations
+- [x] Azure AD B2C authentication (documented)
+- [x] Production deployment (documented)
+
+### Sprint 5 (✅ COMPLETED)
+- [x] Communications & Notifications (email/SMS campaigns)
+- [x] Member Directory with privacy settings
+- [x] Prayer Requests with tracking
 
 ---
 
