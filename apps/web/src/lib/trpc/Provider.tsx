@@ -7,11 +7,7 @@ import superjson from 'superjson';
 import { trpc } from './client';
 
 function getBaseUrl() {
-  if (typeof window !== 'undefined') {
-    // Browser should use relative path
-    return '';
-  }
-  // SSR should use absolute URL
+  // Both browser and SSR should use the API server URL
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8045';
 }
 
