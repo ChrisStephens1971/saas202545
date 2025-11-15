@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc/client';
 import { EventForm } from '@/components/events/EventForm';
+import { ProtectedPage } from '@/components/auth/ProtectedPage';
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -27,10 +28,12 @@ export default function NewEventPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-3xl mx-auto">
-        <EventForm onSubmit={handleSubmit} onCancel={handleCancel} />
+    <ProtectedPage requiredRoles={['admin', 'editor', 'submitter']}>
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-3xl mx-auto">
+          <EventForm onSubmit={handleSubmit} onCancel={handleCancel} />
+        </div>
       </div>
-    </div>
+    </ProtectedPage>
   );
 }
