@@ -1,53 +1,54 @@
 'use client';
 
 import { useState } from 'react';
+import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 
+const isDev = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
+
 export default function LoginPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleDevLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      // TODO: Replace with actual authentication
-      // For now, simulate login with dev-only JWT
-      if (formData.email && formData.password) {
-        // Create a valid dev token with required payload structure
-        const tenantId = '753161b3-e698-46a6-965f-b2ef814c6874'; // Grace Community Church from seed data
-        const devTokenPayload = {
-          userId: 'dev-user-id',
-          role: 'admin',
-          tenantId: tenantId,
-          personId: null,
-          iat: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + (12 * 60 * 60), // 12 hours
-        };
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
 
-        // Base64 encode the payload (matches API's dev JWT format)
-        const devToken = btoa(JSON.stringify(devTokenPayload));
-
-        localStorage.setItem('auth-token', devToken);
-        localStorage.setItem('tenant-id', tenantId);
-        router.push('/dashboard');
+      if (result?.error) {
+        setError('Invalid email or password');
       } else {
-        setError('Email and password are required');
+        router.push('/dashboard');
       }
     } catch (err) {
-      setError('Login failed. Please try again.');
+      setError('An error occurred during sign in');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const handleAzureLogin = async () => {
+    setLoading(true);
+    try {
+      await signIn('azure-ad-b2c', {
+        callbackUrl: '/dashboard',
+      });
+    } catch (err) {
+      setError('An error occurred during sign in');
+      setLoading(false);
     }
   };
 
@@ -67,51 +68,92 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {error && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-base text-red-600">{error}</p>
+            {isDev ? (
+              <>
+                {/* Development Mode Login */}
+                <div className="mb-6 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+                  <p className="text-sm font-semibold text-yellow-800 mb-2">
+                    Development Mode Active
+                  </p>
+                  <p className="text-sm text-yellow-700 mb-2">Test accounts:</p>
+                  <ul className="text-sm text-yellow-700 space-y-1">
+                    <li>• admin@dev.com / admin</li>
+                    <li>• editor@dev.com / editor</li>
+                    <li>• submitter@dev.com / submitter</li>
+                    <li>• viewer@dev.com / viewer</li>
+                    <li>• kiosk@dev.com / kiosk</li>
+                  </ul>
                 </div>
-              )}
 
-              <Input
-                type="email"
-                label="Email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                required
-                autoComplete="email"
-              />
+                <form onSubmit={handleDevLogin} className="space-y-6">
+                  {error && (
+                    <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+                      <p className="text-base text-red-800">{error}</p>
+                    </div>
+                  )}
 
-              <Input
-                type="password"
-                label="Password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                required
-                autoComplete="current-password"
-              />
+                  <Input
+                    type="email"
+                    label="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    disabled={loading}
+                  />
 
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Signing in...' : 'Sign In'}
-              </Button>
-            </form>
+                  <Input
+                    type="password"
+                    label="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                    disabled={loading}
+                  />
 
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Development Mode:</strong> Authentication is simplified.
-                In production, this will use Azure AD B2C with secure authentication.
-              </p>
-            </div>
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full"
+                    disabled={loading}
+                  >
+                    {loading ? 'Signing in...' : 'Sign In'}
+                  </Button>
+                </form>
+              </>
+            ) : (
+              <>
+                {/* Production Mode - Azure AD B2C */}
+                {error && (
+                  <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg mb-6">
+                    <p className="text-base text-red-800">{error}</p>
+                  </div>
+                )}
+
+                <p className="text-lg text-gray-700 text-center mb-6">
+                  Sign in with your church account
+                </p>
+
+                <Button
+                  onClick={handleAzureLogin}
+                  size="lg"
+                  className="w-full mb-6"
+                  disabled={loading}
+                >
+                  {loading ? 'Redirecting...' : 'Sign In with Microsoft'}
+                </Button>
+
+                <div className="text-center">
+                  <a
+                    href="/auth/reset-password"
+                    className="text-base text-primary-600 hover:text-primary-700 underline"
+                  >
+                    Forgot your password?
+                  </a>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 

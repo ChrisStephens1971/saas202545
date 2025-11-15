@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { TRPCProvider } from '@/lib/trpc/Provider';
+import { SessionProvider } from '@/components/providers/SessionProvider';
 import { AppLayout } from '@/components/layout/AppLayout';
 import '../styles/globals.css';
 
@@ -21,9 +22,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <TRPCProvider>
-          <AppLayout>{children}</AppLayout>
-        </TRPCProvider>
+        <SessionProvider>
+          <TRPCProvider>
+            <AppLayout>{children}</AppLayout>
+          </TRPCProvider>
+        </SessionProvider>
       </body>
     </html>
   );
