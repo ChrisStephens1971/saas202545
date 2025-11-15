@@ -6,6 +6,7 @@ import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { ProtectedPage } from '@/components/auth/ProtectedPage';
 
 export default function NewPersonPage() {
   const router = useRouter();
@@ -50,7 +51,8 @@ export default function NewPersonPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
+    <ProtectedPage requiredRoles={['admin', 'editor']}>
+      <div className="container mx-auto px-4 py-8 max-w-3xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Add Person</h1>
         <p className="text-lg text-gray-600">
@@ -171,6 +173,7 @@ export default function NewPersonPage() {
           </form>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </ProtectedPage>
   );
 }
