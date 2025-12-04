@@ -1,360 +1,421 @@
-# Azure SaaS Project Template
+# Elder-First Church Platform
 
-**Template Type:** Azure-Specific SaaS Project
-**Version:** 1.0
-**Last Updated:** 2025-11-05
+A modern, accessible church management platform designed with elder-first principles. Manage bulletins, people, events, and announcements with ease.
 
----
-
-## Overview
-
-This template provides a complete Azure-specific SaaS project structure with:
-
-- **Azure Naming Standard v1.1** - Comprehensive naming and tagging conventions
-- **Infrastructure as Code** - Both Terraform and Bicep support
-- **Automation Scripts** - Name generation, validation, and tag management
-- **CI/CD Pipelines** - GitHub Actions and Azure DevOps templates
-- **Azure Policy** - Enforcement of naming and tagging standards
-- **Multi-Region Support** - DR and HA patterns included
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue)](https://www.postgresql.org/)
+[![tRPC](https://img.shields.io/badge/tRPC-10.x-blue)](https://trpc.io/)
 
 ---
 
-## What's Included
+## 🚀 Quick Start
 
-### 1. Azure Naming Standard
-- **Location:** `technical/azure-naming-standard.md`
-- **Features:**
-  - Comprehensive naming patterns for 35+ Azure services
-  - Service-specific length constraints and rules
-  - Global uniqueness handling strategies
-  - Multi-region naming patterns
-  - Tag standard with required and recommended tags
-  - Azure Policy enforcement examples
-  - Resource Graph queries for compliance checking
+**Get running in 10 minutes**: See **[Quick Start Guide](docs/QUICK-START.md)**
 
-### 2. Automation Scripts
-- **Location:** `C:\devop\.template-system\scripts\`
-- **Scripts:**
-  - `azure-name-generator.py` - Generate resource names
-  - `azure-name-validator.py` - Validate names against standard
-  - `azure-tag-generator.py` - Generate tags for IaC tools
+```bash
+# 1. Install dependencies
+npm install
 
-### 3. Infrastructure as Code
+# 2. Start database
+docker-compose up -d
 
-#### Terraform
-- **Location:** `infrastructure/terraform/`
-- **Includes:**
-  - Naming convention module
-  - Resource group structure (app, data, net)
-  - Virtual networking with subnets and NSGs
-  - Log Analytics and Application Insights
-  - Key Vault
-  - Environment-specific tfvars files
+# 3. Run migrations & seed data
+cd packages/database
+npm run migrate && npm run seed
 
-#### Bicep
-- **Location:** `infrastructure/bicep/`
-- **Includes:**
-  - Naming convention module
-  - Subscription-level deployment
-  - Modular resource templates
-  - Environment-specific parameters
+# 4. Start API server (port 8045)
+cd apps/api && npm run dev
 
-### 4. CI/CD Pipelines
+# 5. Start web app (port 3045)
+cd apps/web && npm run dev
 
-#### GitHub Actions
-- **Location:** `.github/workflows/`
-- **Workflows:**
-  - Terraform plan on PR
-  - Terraform apply on merge
-  - Azure naming validation
-  - Bicep deployment
-
-#### Azure DevOps
-- **Location:** `infrastructure/pipelines/`
-- **Pipelines:**
-  - Main Azure pipeline
-  - Terraform pipeline
-  - Bicep pipeline
-
-### 5. Documentation
-- **Location:** `technical/`, `docs/`
-- **Includes:**
-  - Azure naming standard
-  - Architecture documentation templates
-  - Security best practices
-  - IaC documentation
-
----
-
-## Getting Started
-
-### Prerequisites
-
-1. **Azure CLI** installed and authenticated
-2. **Terraform** >= 1.5 (if using Terraform)
-3. **Bicep** CLI (if using Bicep)
-4. **Python 3.8+** for automation scripts
-5. **Git** initialized repository
-
-### Initial Setup
-
-1. **Review Azure Configuration**
-   ```bash
-   # Check CLAUDE.md for:
-   # - Azure Org code (vrd)
-   # - Project code (202545)
-   # - Primary/Secondary regions
-   ```
-
-2. **Generate Resource Names**
-   ```bash
-   python C:/devop/.template-system/scripts/azure-name-generator.py \
-     --type app \
-     --org vrd \
-     --proj tmt \
-     --env dev \
-     --region eus2 \
-     --seq 01
-   ```
-
-3. **Configure Terraform** (if using)
-   ```bash
-   cd infrastructure/terraform
-
-   # Copy environment file
-   cp environments/dev.tfvars.example environments/dev.tfvars
-
-   # Edit variables
-   nano environments/dev.tfvars
-
-   # Initialize
-   terraform init
-
-   # Plan
-   terraform plan -var-file="environments/dev.tfvars"
-   ```
-
-4. **Configure Bicep** (if using)
-   ```bash
-   cd infrastructure/bicep
-
-   # Copy parameters
-   cp environments/dev.parameters.example.json environments/dev.parameters.json
-
-   # Edit parameters
-   nano environments/dev.parameters.json
-
-   # Deploy
-   az deployment sub create \
-     --location eastus2 \
-     --template-file main.bicep \
-     --parameters @environments/dev.parameters.json
-   ```
-
----
-
-## Azure Naming Quick Reference
-
-### Pattern
-```
-{type}-{org}-{proj}-{env}-{region}-{slice}-{seq}
-```
-
-### Examples
-```
-rg-vrd-tmt-prd-eus2-app           # Resource Group
-app-vrd-tmt-prd-eus2-01           # App Service
-func-vrd-tmt-prd-eus2-01          # Function App
-stvrdtmtprdeus201                 # Storage (no hyphens)
-kv-vrd-tmt-prd-eus2-01            # Key Vault
-sqlsvr-vrd-tmt-prd-eus2           # SQL Server
-cosmos-vrd-tmt-prd-eus2           # Cosmos DB
-vnet-vrd-tmt-prd-eus2             # Virtual Network
-snet-vrd-tmt-prd-eus2-app         # Subnet
-```
-
-### Required Tags
-```
-Org, Project, Environment, Region, Owner, CostCenter
+# 6. Open http://localhost:3045/login
 ```
 
 ---
 
-## Project Structure
+## 📚 Documentation
+
+- **[Quick Start Guide](docs/QUICK-START.md)** - Get running in 10 minutes
+- **[API Documentation](docs/API-DOCUMENTATION.md)** - Complete API reference
+- **[Database Schema](docs/DATABASE-SCHEMA.md)** - Database structure & RLS
+- **[Session Notes](docs/SESSION-2025-11-14.md)** - Latest development session
+- **[Documentation Index](docs/README.md)** - All documentation
+
+---
+
+## ✨ Features
+
+### ✅ Implemented (Sprints 1-2)
+
+- **Multi-Tenant Architecture**: Row-Level Security (RLS) for data isolation
+- **Bulletins Management**: Create, edit, lock bulletins for Sunday worship
+- **Service Items**: Drag-and-drop order of worship with CCLI validation
+- **PDF Generation**: Basic bulletin PDF download with formatted output
+- **People Directory**: Manage members, attendees, and visitors
+- **Events Calendar**: Month view calendar with event management
+- **Event Management**: Create, edit, delete events with RSVP support
+- **Announcements**: Priority-based with approval workflow
+- **Dashboard**: Real statistics, active announcements, quick actions
+- **Type-Safe API**: tRPC with full TypeScript inference
+- **Responsive UI**: Elder-first design (18px min font, 48px touch targets)
+- **Dev Authentication**: JWT-based auth (Azure AD B2C planned)
+
+### 🚧 In Progress
+
+- [ ] Forms builder
+- [ ] Attendance tracking
+- [ ] Groups management
+
+### ⏳ Planned
+
+- [ ] Forms builder
+- [ ] Attendance tracking
+- [ ] Giving/donations
+- [ ] Groups management
+- [ ] Enhanced PDF templates
+- [ ] Slide generation for worship
+- [ ] Azure AD B2C authentication
+
+---
+
+## 🏗️ Tech Stack
+
+### Frontend
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript 5
+- **Styling**: Tailwind CSS 3
+- **State**: React Query (TanStack Query)
+- **API Client**: tRPC React
+
+### Backend
+- **API**: tRPC on Express
+- **Database**: PostgreSQL 15
+- **Validation**: Zod schemas
+- **Authentication**: JWT (dev), Azure AD B2C (planned)
+- **Multi-Tenancy**: Row-Level Security (RLS)
+
+### Infrastructure
+- **Monorepo**: Turborepo + npm workspaces
+- **Database**: Docker Compose
+- **Deployment**: Azure (planned)
+
+---
+
+## 📁 Project Structure
 
 ```
-saas-project-azure/
-├── CLAUDE.md                    # Claude instructions (Azure-specific)
-├── README.md                    # This file
-├── .gitignore                   # Git ignore patterns
-│
-├── technical/                   # Technical documentation
-│   ├── azure-naming-standard.md
-│   ├── azure-architecture.md
-│   └── azure-security.md
-│
-├── infrastructure/              # Infrastructure as Code
-│   ├── terraform/
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   ├── modules/
-│   │   │   └── naming/
-│   │   └── environments/
-│   │       ├── dev.tfvars
-│   │       ├── stg.tfvars
-│   │       └── prd.tfvars
+saas202545/
+├── apps/
+│   ├── api/                    # tRPC API server (port 8045)
+│   │   ├── src/
+│   │   │   ├── routers/        # API endpoints
+│   │   │   ├── db.ts           # Database client + RLS
+│   │   │   ├── trpc.ts         # tRPC setup
+│   │   │   └── index.ts        # Express server
+│   │   └── package.json
 │   │
-│   ├── bicep/
-│   │   ├── main.bicep
-│   │   ├── modules/
-│   │   │   ├── naming.bicep
-│   │   │   ├── key-vault.bicep
-│   │   │   └── vnet.bicep
-│   │   └── environments/
-│   │       ├── dev.parameters.json
-│   │       ├── stg.parameters.json
-│   │       └── prd.parameters.json
-│   │
-│   ├── policies/                # Azure Policy definitions
-│   │   ├── rg-naming-policy.json
-│   │   ├── required-tags-policy.json
-│   │   └── tag-inheritance-policy.json
-│   │
-│   └── pipelines/               # Azure DevOps pipelines
-│       ├── azure-pipelines.yml
-│       ├── terraform-pipeline.yml
-│       └── bicep-pipeline.yml
+│   └── web/                    # Next.js frontend (port 3045)
+│       ├── src/
+│       │   ├── app/            # App Router pages
+│       │   ├── components/     # React components
+│       │   └── lib/trpc/       # tRPC client
+│       └── package.json
 │
-├── .github/workflows/           # GitHub Actions
-│   ├── terraform-plan.yml
-│   ├── terraform-apply.yml
-│   ├── azure-validation.yml
-│   └── bicep-deploy.yml
+├── packages/
+│   ├── database/               # Migrations & seed data
+│   │   ├── migrations/         # SQL migration files
+│   │   └── src/
+│   │       ├── migrate.ts      # Migration runner
+│   │       └── seed.ts         # Test data seeding
+│   │
+│   ├── types/                  # Shared TypeScript types
+│   └── config/                 # Shared configuration
 │
-└── docs/                        # Additional documentation
-    ├── architecture/
-    ├── security/
-    └── operations/
+├── docs/                       # 📚 Documentation
+│   ├── QUICK-START.md
+│   ├── API-DOCUMENTATION.md
+│   ├── DATABASE-SCHEMA.md
+│   └── SESSION-2025-11-14.md
+│
+├── docker-compose.yml          # PostgreSQL container
+└── package.json                # Monorepo root
 ```
 
 ---
 
-## Common Tasks
+## 🗄️ Database
 
-### Generate a Resource Name
+### Schema Overview
+
+24 tables with Row-Level Security:
+- `tenant` - Multi-tenant organizations
+- `person` - Church members/attendees
+- `household` - Family groupings
+- `bulletin_issue` - Sunday bulletins
+- `service_item` - Order of worship
+- `event` - Church events
+- `announcement` - Announcements
+- `brand_pack` - Visual branding
+- `fund` - Giving/donations
+- `communication_template` - Email/SMS templates
+- `communication_campaign` - Email/SMS campaigns
+- `directory_settings` - Member privacy settings
+- `prayer_request` - Prayer requests
+- Plus 11 more tables...
+
+**Full schema**: See [Database Schema Documentation](docs/DATABASE-SCHEMA.md)
+
+### Multi-Tenancy
+
+Every query automatically filtered by tenant using PostgreSQL RLS:
+
+```sql
+-- User writes:
+SELECT * FROM person WHERE email = 'john@example.com';
+
+-- PostgreSQL executes:
+SELECT * FROM person
+WHERE email = 'john@example.com'
+  AND tenant_id = current_setting('app.tenant_id')::uuid;
+```
+
+No way to access other tenant's data—enforced at database level.
+
+---
+
+## 🔌 API
+
+### tRPC Endpoints
+
+**Bulletins**: `list`, `get`, `create`, `update`, `delete`, `lock`
+**People**: `list`, `get`, `create`, `update`, `delete`
+**Service Items**: `list`, `create`, `update`, `delete`, `reorder`
+**Events**: `list`, `get`, `create`, `update`, `delete`
+**Announcements**: `listActive`, `list`, `get`, `create`, `update`, `delete`, `approve`
+
+### Example Usage
+
+```typescript
+// Frontend query
+const { data } = trpc.bulletins.list.useQuery({
+  limit: 20,
+  status: 'draft',
+});
+
+// Frontend mutation
+const createBulletin = trpc.bulletins.create.useMutation();
+await createBulletin.mutate({
+  serviceDate: '2025-11-17T10:00:00Z',
+});
+```
+
+**Full API reference**: See [API Documentation](docs/API-DOCUMENTATION.md)
+
+---
+
+## 🧪 Testing
+
+### Test Data
+
+Seed data includes:
+- **Tenant**: Grace Community Church (`gracechurch`)
+- **People**: 4 test people
+- **Bulletin**: Next Sunday's bulletin
+- **Service Items**: 9 worship items
+- **Announcements**: 3 test announcements
+
 ```bash
-python C:/devop/.template-system/scripts/azure-name-generator.py \
-  --type <resource-type> \
-  --org vrd \
-  --proj 202545 \
-  --env <environment> \
-  --region eus2 \
-  --seq 01
+cd packages/database
+npm run seed
 ```
 
-### Validate a Resource Name
+### Manual Testing
+
+1. Login at http://localhost:3045/login (any credentials)
+2. View bulletins at http://localhost:3045/bulletins
+3. View people at http://localhost:3045/people
+4. API health: `curl http://localhost:8045/health`
+
+---
+
+## 🛠️ Development
+
+### Commands
+
 ```bash
-python C:/devop/.template-system/scripts/azure-name-validator.py \
-  --name "app-vrd-tmt-prd-eus2-01"
+# Install dependencies
+npm install
+
+# Start development servers
+docker-compose up -d           # Database
+cd apps/api && npm run dev     # API (port 8045)
+cd apps/web && npm run dev     # Web (port 3045)
+
+# Database
+cd packages/database
+npm run migrate                # Run migrations
+npm run seed                   # Seed test data
+
+# Quality checks
+npm run typecheck              # TypeScript
+npm run lint                   # ESLint
+npm run build                  # Production build
 ```
 
-### Generate Tags
+### Before Committing
+
 ```bash
-python C:/devop/.template-system/scripts/azure-tag-generator.py \
-  --org vrd \
-  --proj 202545 \
-  --env prd \
-  --region eus2 \
-  --owner ops@verdaio.com \
-  --cost-center 202545-llc \
-  --format terraform
-```
+# 1. Typecheck
+npm run typecheck
 
-### Deploy Infrastructure (Terraform)
-```bash
-cd infrastructure/terraform
-terraform init
-terraform plan -var-file="environments/dev.tfvars"
-terraform apply -var-file="environments/dev.tfvars"
-```
+# 2. Lint
+npm run lint
 
-### Deploy Infrastructure (Bicep)
-```bash
-cd infrastructure/bicep
-az deployment sub create \
-  --location eastus2 \
-  --template-file main.bicep \
-  --parameters @environments/dev.parameters.json
+# 3. Commit
+git add .
+git commit -m "feat: description"
 ```
 
 ---
 
-## Best Practices
+## 🎨 Design Principles
 
-1. **Always Validate Names** - Use validation scripts before deploying
-2. **Use IaC Modules** - Leverage naming modules for consistency
-3. **Tag Everything** - Apply tags at resource group level for inheritance
-4. **Test in Dev First** - Always deploy to dev environment first
-5. **Review Policies** - Understand Azure Policy enforcement before deploying
-6. **Document Exceptions** - Use `infrastructure/EXCEPTIONS.md` for deviations
-7. **Cost Management** - Review tags for cost allocation accuracy
+### Elder-First Design
 
----
+- **18px minimum font size** (most platforms use 14-16px)
+- **48px minimum touch targets** (WCAG requires 44px)
+- **WCAG AA contrast** (4.5:1 text, 3:1 UI components)
+- **Clear visual hierarchy**
+- **Consistent spacing** (8px grid)
+- **Simple navigation**
 
-## Multi-Region Deployment
+### Accessibility
 
-For HA/DR scenarios:
-
-1. **Update Variables** - Set primary and secondary regions
-2. **Deploy Primary** - Deploy all resources to primary region
-3. **Deploy Secondary** - Deploy to secondary region with `-secondary` suffix
-4. **Configure Replication** - Set up geo-replication for data services
-5. **Add Traffic Manager** - Configure global load balancing
-6. **Tag Resources** - Add `RegionRole` and `PairedRegion` tags
+- Keyboard navigation support
+- Screen reader friendly
+- High contrast mode
+- No auto-playing content
+- Clear error messages
 
 ---
 
-## Troubleshooting
+## 🔒 Security
 
-### Name Too Long
-- Review service-specific length constraints in `azure-naming-standard.md`
-- Shorten org or project codes
-- Use abbreviated slice names
+### Current (Development)
+- ✅ Row-Level Security (RLS) at database level
+- ✅ Parameterized queries (SQL injection prevention)
+- ✅ Soft deletes (audit trail)
+- ⚠️ Simple JWT (dev only, **NOT production ready**)
 
-### Name Already Exists (Globally Unique Services)
-- Increment sequence number (01 → 02)
-- Check naming module outputs
-- Verify naming pattern matches standard
-
-### Policy Violations
-- Run validation scripts before deploying
-- Check required tags are present
-- Review Azure Policy assignments
-- Check `EXCEPTIONS.md` for documented deviations
-
-### Tag Inheritance Not Working
-- Verify Azure Policy is assigned
-- Check resource group has tags
-- Review policy compliance in Azure Portal
-- Allow time for policy evaluation (5-15 minutes)
+### Required for Production
+- [ ] Azure AD B2C with OAuth 2.0
+- [ ] JWT signing with RS256
+- [ ] Rate limiting
+- [ ] CSRF protection
+- [ ] Input sanitization
+- [ ] HTTPS enforcement
+- [ ] Secrets in Azure Key Vault
 
 ---
 
-## Support
+## 📦 Deployment
 
-**Questions?**
-- Review `technical/azure-naming-standard.md`
-- Check CLAUDE.md for project-specific instructions
-- Contact platform team: ops@verdaio.com
+### Planned Infrastructure (Azure)
 
-**Found an Issue?**
-- Submit PR to improve templates
-- Update `EXCEPTIONS.md` for deviations
-- Document learnings in `docs/`
+- **App Service**: Web app + API
+- **PostgreSQL**: Azure Database for PostgreSQL
+- **Key Vault**: Secrets management
+- **Front Door**: CDN + WAF
+- **Monitor**: Application Insights
+- **AD B2C**: Authentication
+
+**Deployment guide**: Coming soon
 
 ---
 
-**Template Version:** 1.0 (Azure)
-**Naming Standard Version:** 1.1
-**Last Updated:** 2025-11-05
+## 🤝 Contributing
+
+### Workflow
+
+1. Create feature branch: `git checkout -b feat/my-feature`
+2. Make changes
+3. Run tests: `npm run typecheck && npm run lint`
+4. Commit: `git commit -m "feat: description"`
+5. Push: `git push origin feat/my-feature`
+6. Create Pull Request
+
+### Commit Message Format
+
+Use conventional commits:
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation
+- `refactor:` - Code refactoring
+- `test:` - Tests
+- `chore:` - Maintenance
+
+---
+
+## 📋 Roadmap
+
+### Sprint 1 (✅ COMPLETED)
+- [x] Database schema with RLS
+- [x] All 5 main routers implemented
+- [x] Frontend pages (bulletins, people)
+- [x] Service items drag-and-drop UI
+- [x] End-to-end bulletin flow
+
+### Sprint 2 (✅ COMPLETED)
+- [x] Events calendar view
+- [x] Announcements management
+- [x] Dashboard with stats
+- [x] PDF bulletin generation (basic)
+
+### Sprint 3 (✅ COMPLETED)
+- [x] Forms builder
+- [x] Attendance tracking
+- [x] Groups management
+
+### Sprint 4 (✅ COMPLETED)
+- [x] Giving/donations
+- [x] Azure AD B2C authentication (documented)
+- [x] Production deployment (documented)
+
+### Sprint 5 (✅ COMPLETED)
+- [x] Communications & Notifications (email/SMS campaigns)
+- [x] Member Directory with privacy settings
+- [x] Prayer Requests with tracking
+
+---
+
+## 📝 License
+
+Private - All Rights Reserved
+
+---
+
+## 🙏 Acknowledgments
+
+Built with:
+- [tRPC](https://trpc.io) - Type-safe APIs
+- [Next.js](https://nextjs.org) - React framework
+- [PostgreSQL](https://www.postgresql.org) - Database
+- [Tailwind CSS](https://tailwindcss.com) - Styling
+- [TanStack Query](https://tanstack.com/query) - Data fetching
+- [Zod](https://zod.dev) - Schema validation
+
+---
+
+## 📞 Support
+
+- **Documentation**: See `docs/` folder
+- **Issues**: GitHub Issues
+- **Questions**: Developer Slack channel
+
+---
+
+**Version**: 0.2.0 (Sprint 2)
+**Last Updated**: November 15, 2025
+**Status**: In Active Development

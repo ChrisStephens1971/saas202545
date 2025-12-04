@@ -1,0 +1,37 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # SECURITY FIX (H12): Make test failures block the build
+      # Tests verify security controls - they must pass before merge
+      # See: docs/SECURITY-AUDIT-2025-12-04.md (H12)
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test

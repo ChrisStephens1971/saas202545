@@ -5,14 +5,16 @@
   "version": "2.1",
   "state": {
     "hasGreeted": false,
-    "setupComplete": false,
-    "currentSprint": null,
-    "phase": "planning"
+    "setupComplete": true,
+    "currentSprint": 6,
+    "phase": "development",
+    "sprintsCompleted": ["sprint-01-people-events", "sprint-02-bulletins", "sprint-03-forms-attendance-groups", "sprint-04-giving-donations", "sprint-05-communications-directory-prayers"],
+    "sprintInProgress": "sprint-06-authentication-authorization"
   },
   "workflow": {
-    "currentPhase": "planning",
-    "phasesCompleted": [],
-    "lastPhaseTransition": null,
+    "currentPhase": "development",
+    "phasesCompleted": ["planning", "foundation"],
+    "lastPhaseTransition": "2025-11-14",
     "checklistSource": ".project-workflow.json"
   },
   "metadata": {
