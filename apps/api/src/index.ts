@@ -10,6 +10,7 @@ import { createContext } from './context';
 import { logger } from './utils/logger';
 import { checkDatabaseHealth } from './db';
 import { validateEncryptionConfig } from './utils/encryption';
+import { IS_PROD } from './config/env';
 
 // Load .env first, then .env.local (which takes precedence for local overrides)
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
@@ -17,7 +18,7 @@ dotenv.config({ path: path.resolve(__dirname, '..', '.env.local'), override: tru
 
 const app = express();
 const PORT = process.env.PORT || 8045;
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = IS_PROD;
 
 /**
  * SECURITY FIX (C4): Rate Limiting Configuration

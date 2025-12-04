@@ -157,8 +157,9 @@ export function decryptSecret(ciphertext: string): string {
  * @throws Error if production/staging and encryption key is not configured
  */
 export function validateEncryptionConfig(): void {
-  const nodeEnv = process.env.NODE_ENV;
-  const isProduction = nodeEnv === 'production' || nodeEnv === 'staging';
+  // Import inline to avoid circular dependency issues at module load time
+  const { IS_PROD_LIKE } = require('../config/env');
+  const isProduction = IS_PROD_LIKE;
 
   if (!isEncryptionConfigured()) {
     if (isProduction) {

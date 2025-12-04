@@ -1,5 +1,6 @@
 import { Pool, QueryResult, QueryResultRow } from 'pg';
 import { logger } from './utils/logger';
+import { IS_PROD_LIKE } from './config/env';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -25,7 +26,7 @@ function getSslConfig(): boolean | { rejectUnauthorized: boolean } {
 
   // Development: No SSL (local Docker PostgreSQL)
   if (sslMode !== 'true' && sslMode !== 'require-no-verify') {
-    if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging') {
+    if (IS_PROD_LIKE) {
       logger.warn(
         '[SECURITY] DATABASE_SSL is not enabled in production/staging. ' +
         'This is insecure. Set DATABASE_SSL=true for production.'

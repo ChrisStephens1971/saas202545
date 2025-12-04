@@ -3,8 +3,9 @@ import superjson from 'superjson';
 import { Context } from './context';
 import { logger } from './utils/logger';
 import { AppRole, PlatformRole } from './auth/types';
+import { IS_PROD } from './config/env';
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = IS_PROD;
 
 /**
  * SECURITY: Production-safe error formatting
