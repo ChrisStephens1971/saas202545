@@ -1,0 +1,69 @@
+version: '3.8'
+
+# ============================================================================
+# DEVELOPMENT DOCKER COMPOSE
+# ============================================================================
+# WARNING: This file is for LOCAL DEVELOPMENT ONLY.
+# Do NOT use in production or expose these containers to the internet.
+#
+# For production, use Azure Database for PostgreSQL and Azure Cache for Redis.
+#
+# SECURITY FIX (H7): Default credentials have been changed to clearly indicate
+# they are for development only. Credentials should be set via environment
+# variables in production.
+#
+# To override default credentials, create a .env file or set environment vars:
+#   POSTGRES_USER=your_user
+#   POSTGRES_PASSWORD=your_strong_password
+#   POSTGRES_DB=your_database
+#
+# See: docs/SECURITY-AUDIT-2025-12-04.md (H7)
+# ============================================================================
+
+services:
+  postgres:
+    image: postgres:14
+    container_name: elder-first-postgres
+    environment:
+      # SECURITY: Use environment variables for credentials
+      # Default values are for local development only
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_dev_only}
+      POSTGRES_DB: ${POSTGRES_DB:-elder_first}
+    ports:
+      # Only bind to localhost to prevent external access
+      - "127.0.0.1:5678:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Restrict container to local network only
+    networks:
+      - elder-first-dev
+
+  redis:
+    image: redis:7-alpine
+    container_name: elder-first-redis
+    ports:
+      # Only bind to localhost to prevent external access
+      - "127.0.0.1:6445:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - elder-first-dev
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  elder-first-dev:
+    driver: bridge
