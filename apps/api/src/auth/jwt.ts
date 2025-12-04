@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { AuthToken, User } from './types';
 import { logger } from '../utils/logger';
+import { IS_PROD_LIKE, IS_TEST } from '../config/env';
 
 /**
  * SECURITY FIX (C3): JWT secret configuration with no hardcoded fallbacks.
@@ -15,14 +16,13 @@ import { logger } from '../utils/logger';
  */
 const JWT_SECRET = (() => {
   const secret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
-  const nodeEnv = process.env.NODE_ENV;
 
   if (secret && secret.length >= 32) {
     return secret;
   }
 
   // In production or staging, fail fast - never allow the server to start without proper secrets
-  if (nodeEnv === 'production' || nodeEnv === 'staging') {
+  if (IS_PROD_LIKE) {
     throw new Error(
       'FATAL: JWT_SECRET or NEXTAUTH_SECRET environment variable must be set in production/staging. ' +
       'The secret must be at least 32 characters. ' +
@@ -31,7 +31,7 @@ const JWT_SECRET = (() => {
   }
 
   // For tests, use TEST_JWT_SECRET if available
-  if (nodeEnv === 'test' && process.env.TEST_JWT_SECRET) {
+  if (IS_TEST && process.env.TEST_JWT_SECRET) {
     return process.env.TEST_JWT_SECRET;
   }
 

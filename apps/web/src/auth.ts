@@ -2,6 +2,7 @@ import NextAuth, { DefaultSession } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import AzureADB2CProvider from 'next-auth/providers/azure-ad-b2c';
 import crypto from 'crypto';
+import { IS_DEV as IS_DEV_ENV, NODE_ENV } from './config/env';
 
 // Extend session types to include userId and role
 declare module 'next-auth' {
@@ -32,7 +33,7 @@ declare module 'next-auth' {
  *
  * See: docs/SECURITY-AUDIT-2025-12-04.md (C2)
  */
-const isStrictDevelopment = process.env.NODE_ENV === 'development';
+const isStrictDevelopment = IS_DEV_ENV;
 const allowDevUsers = process.env.ALLOW_DEV_USERS === 'true';
 const isDev = isStrictDevelopment && allowDevUsers;
 
@@ -41,7 +42,7 @@ if (process.env.ALLOW_DEV_USERS === 'true' && !isStrictDevelopment) {
   console.error(
     '[SECURITY] ALLOW_DEV_USERS is set but NODE_ENV is not "development". ' +
     'Development credentials are DISABLED for security. ' +
-    `Current NODE_ENV: ${process.env.NODE_ENV}`
+    `Current NODE_ENV: ${NODE_ENV}`
   );
 }
 
