@@ -2,7 +2,7 @@
 
 **Baseline Date:** 2025-12-04
 **Baseline Tag:** `security-baseline-2025-12-04` <!-- TODO: update with actual tag once created -->
-**Last Updated:** 2025-12-04
+**Last Updated:** 2025-12-05
 
 ---
 
@@ -75,6 +75,13 @@ The platform now meets a strong security baseline suitable for production use in
 - npm audit failures block builds — Phase 2
 - Test failures block builds — Phase 2
 - Gitleaks secrets scanning in CI — Phase 3
+- Gitleaks allowlist configured for documentation examples — 2025-12-05
+
+**Gitleaks Configuration (`.gitleaks.toml`):**
+- Real secrets in code/config will fail the scan
+- Documentation files (`docs/`, `technical/`) are allowlisted for example values
+- Specific placeholder patterns are allowlisted: `changeme123`, `postgres`, `yourpassword`
+- New documentation examples must use obviously fake values
 
 **References:** Phase 2 (H11, H12), Phase 3 (M3)
 

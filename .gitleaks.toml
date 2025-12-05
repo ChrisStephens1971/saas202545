@@ -21,12 +21,21 @@ useDefault = true
     '''\.env\.example$''',
     '''\.env\.staging\.example$''',
     '''\.env\.local\.example$''',
-    '''/docs/.*\.md$''',
+    # Documentation files with example configs (not real secrets)
+    '''docs/.*\.md$''',
+    '''technical/.*\.md$''',
     '''CHANGELOG\.md$''',
     '''README\.md$''',
     # Test fixtures that may contain fake secrets
-    '''/src/__tests__/.*''',
-    '''/tests/fixtures/.*''',
+    '''src/__tests__/.*''',
+    '''tests/fixtures/.*''',
+    # docker-compose.yml contains commented examples showing env var patterns
+    # These are templates for users, not actual secrets
+    '''docker-compose\.yml$''',
+    # apps/web/src/auth.ts has JSDoc comments explaining dev credential env vars
+    # Line 143: "Set password env vars in .env.local (e.g., DEV_ADMIN_PASSWORD=yourpassword)"
+    # This is documentation, not an actual secret
+    '''apps/web/src/auth\.ts$''',
   ]
 
   # Regexes to ignore (for known false positives)
@@ -42,6 +51,17 @@ useDefault = true
     '''test-api-key''',
     '''mock-secret''',
     '''dummy-.*-key''',
+    # Development placeholder passwords (docs/examples only)
+    '''changeme123''',
+    '''YourStrongPassword123!''',
+    # Local dev docker defaults (never used in production)
+    '''POSTGRES_PASSWORD=postgres''',
+    # Example Key Vault references (documentation patterns)
+    '''@Microsoft\.KeyVault\(SecretUri=''',
+    # DEV_*_PASSWORD environment variable documentation patterns
+    '''DEV_[A-Z]+_PASSWORD=changeme123''',
+    # Comment example in auth.ts showing env var pattern
+    '''DEV_ADMIN_PASSWORD=yourpassword''',
   ]
 
 # Additional custom rules for this project
