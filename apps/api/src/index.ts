@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import path from 'path';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
@@ -11,6 +12,8 @@ import { logger } from './utils/logger';
 import { checkDatabaseHealth } from './db';
 import { validateEncryptionConfig } from './utils/encryption';
 import { IS_PROD } from './config/env';
+import { corsOptions, logCorsConfig } from './config/cors';
+import { csrfProtection, logCsrfConfig } from './security/csrf';
 
 // Load .env first, then .env.local (which takes precedence for local overrides)
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
@@ -105,15 +108,38 @@ app.use(
   })
 );
 
-// Middleware
-app.use(
-  cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3045'],
-    credentials: true,
-  })
-);
+/**
+ * SECURITY FIX (Phase 3 - M1): Hardened CORS Configuration
+ *
+ * Uses centralized CORS config with:
+ * - Strict origin validation (exact match only)
+ * - No wildcards in production
+ * - Logging for rejected origins
+ *
+ * See: apps/api/src/config/cors.ts
+ */
+app.use(cors(corsOptions));
 // Increase body size limit to 10MB for canvas layouts with base64 images
 app.use(express.json({ limit: '10mb' }));
+
+/**
+ * SECURITY FIX (Phase 3 - M2): Cookie Parser for CSRF
+ *
+ * Required for reading CSRF tokens from cookies.
+ */
+app.use(cookieParser());
+
+/**
+ * SECURITY FIX (Phase 3 - M2): CSRF Protection
+ *
+ * Implements double-submit cookie pattern:
+ * - Sets XSRF-TOKEN cookie on responses
+ * - Validates X-CSRF-Token header on state-changing requests
+ * - Enabled only in production-like environments by default
+ *
+ * See: apps/api/src/security/csrf.ts
+ */
+app.use(csrfProtection());
 
 // SECURITY FIX (C4): Apply rate limiting
 // General rate limit for all API requests
@@ -195,6 +221,12 @@ async function start() {
   // SECURITY FIX (H10): Validate encryption configuration at startup
   // This will throw in production/staging if APP_ENCRYPTION_KEY is not set
   validateEncryptionConfig();
+
+  // SECURITY FIX (Phase 3 - M1): Log CORS configuration
+  logCorsConfig();
+
+  // SECURITY FIX (Phase 3 - M2): Log CSRF configuration
+  logCsrfConfig();
 
   // Check database connection
   const dbHealthy = await checkDatabaseHealth();

@@ -11,12 +11,43 @@ env:
 
 jobs:
   # ============================================================================
+  # SECURITY FIX (Phase 3 - M3): Secrets Scanning with Gitleaks
+  # Scans code for accidentally committed secrets, API keys, tokens, etc.
+  # See: docs/SECURITY-AUDIT-2025-12-04.md (Phase 3)
+  # ============================================================================
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for scanning all commits
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # Optional: for enterprise features
+
+      - name: Upload Gitleaks report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: results.sarif
+          retention-days: 30
+
+  # ============================================================================
   # SECURITY: Dependency vulnerability scanning
   # ============================================================================
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: secrets-scan  # Run after secrets scan passes
 
     steps:
       - name: Checkout code
