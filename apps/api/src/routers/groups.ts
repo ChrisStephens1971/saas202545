@@ -1,6 +1,6 @@
 import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
-import { queryWithTenant } from '../db';
+import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
 
 // Unused interfaces - can be added back when needed for type safety
@@ -40,7 +40,7 @@ export const groupsRouter = router({
         WHERE g.deleted_at IS NULL
       `;
 
-      const queryParams: any[] = [];
+      const queryParams: QueryParam[] = [];
 
       if (category) {
         queryParams.push(category);
@@ -146,7 +146,7 @@ export const groupsRouter = router({
       const tenantId = ctx.tenantId!;
 
       const setClauses: string[] = [];
-      const values: any[] = [id];
+      const values: QueryParam[] = [id];
       let paramIndex = 2;
 
       Object.entries(updates).forEach(([key, value]) => {

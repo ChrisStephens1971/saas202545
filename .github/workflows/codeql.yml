@@ -1,0 +1,64 @@
+# CodeQL Security Analysis Workflow
+#
+# This workflow performs static application security testing (SAST) using GitHub CodeQL.
+# It scans for common security vulnerabilities in JavaScript/TypeScript code.
+#
+# For more information:
+# - https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors
+# - https://codeql.github.com/docs/codeql-overview/supported-languages-and-frameworks/
+
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    # Run weekly on Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      # Required for CodeQL to upload results
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['javascript-typescript']
+        # CodeQL supports: 'cpp', 'csharp', 'go', 'java', 'javascript-typescript', 'python', 'ruby'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Initialize the CodeQL tools for scanning
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Use security-extended queries for more comprehensive scanning
+          queries: security-extended
+          # Custom config can be added here if needed
+          # config-file: .github/codeql/codeql-config.yml
+
+      # Autobuild attempts to build any compiled languages
+      # For JS/TS this step performs extraction
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      # Perform the CodeQL analysis
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          # Upload results to GitHub Security tab
+          upload: true

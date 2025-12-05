@@ -173,6 +173,7 @@ export function ResizeHandles({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- block.id/block.type used for debug logging only; startBlock captures initial state
   }, [activeHandle, startPos, startBlock, scale, gridSize, onResize, onResizeEnd]);
 
   const handleMouseDown = (handle: ResizeHandle) => (e: React.MouseEvent) => {

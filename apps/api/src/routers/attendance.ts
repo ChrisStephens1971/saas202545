@@ -1,11 +1,44 @@
 import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
-import { queryWithTenant } from '../db';
+import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
 
-// Unused interfaces - can be added back when needed for type safety
-// interface AttendanceSession { ... }
-// interface AttendanceRecord { ... }
+/** Database row type for attendance session with joined event/group */
+export interface AttendanceSessionRow {
+  id: string;
+  tenant_id: string;
+  name: string;
+  category: string;
+  event_id: string | null;
+  group_id: string | null;
+  session_date: string;
+  session_time: string | null;
+  total_count: number;
+  member_count: number;
+  visitor_count: number;
+  created_by: string | null;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+  event_title: string | null;
+  group_name: string | null;
+}
+
+/** Database row type for attendance record with joined person info */
+export interface AttendanceRecordRow {
+  id: string;
+  person_id: string;
+  guest_count: number;
+  notes: string | null;
+  checked_in_at: Date;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  photo_url: string | null;
+  membership_status: string | null;
+  checked_in_by_first_name: string | null;
+  checked_in_by_last_name: string | null;
+}
 
 export const attendanceRouter = router({
   listSessions: protectedProcedure
@@ -35,7 +68,7 @@ export const attendanceRouter = router({
         WHERE ats.deleted_at IS NULL
       `;
 
-      const queryParams: any[] = [];
+      const queryParams: QueryParam[] = [];
 
       if (category) {
         queryParams.push(category);
@@ -65,7 +98,7 @@ export const attendanceRouter = router({
       queryText += ` ORDER BY ats.session_date DESC, ats.session_time DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
       queryParams.push(limit, offset);
 
-      const result = await queryWithTenant(tenantId, queryText, queryParams);
+      const result = await queryWithTenant<AttendanceSessionRow>(tenantId, queryText, queryParams);
 
       const countQuery = `
         SELECT COUNT(*) as total
@@ -78,7 +111,7 @@ export const attendanceRouter = router({
         ${endDate ? `AND session_date <= $${[category, eventId, groupId, startDate].filter(Boolean).length + 1}` : ''}
       `;
       const countParams = [category, eventId, groupId, startDate, endDate].filter(Boolean);
-      const countResult = await queryWithTenant(tenantId, countQuery, countParams);
+      const countResult = await queryWithTenant<{ total: string }>(tenantId, countQuery, countParams);
 
       return {
         sessions: result.rows,
@@ -92,7 +125,7 @@ export const attendanceRouter = router({
       const { id } = input;
       const tenantId = ctx.tenantId!;
 
-      const sessionResult = await queryWithTenant(
+      const sessionResult = await queryWithTenant<AttendanceSessionRow>(
         tenantId,
         `SELECT
           ats.*,
@@ -109,7 +142,7 @@ export const attendanceRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Attendance session not found' });
       }
 
-      const recordsResult = await queryWithTenant(
+      const recordsResult = await queryWithTenant<AttendanceRecordRow>(
         tenantId,
         `SELECT
           ar.id,
@@ -190,7 +223,7 @@ export const attendanceRouter = router({
       const tenantId = ctx.tenantId!;
 
       const setClauses: string[] = [];
-      const values: any[] = [id];
+      const values: QueryParam[] = [id];
       let paramIndex = 2;
 
       Object.entries(updates).forEach(([key, value]) => {
@@ -274,8 +307,9 @@ export const attendanceRouter = router({
         );
 
         return result.rows[0];
-      } catch (error: any) {
-        if (error.code === '23505') {
+      } catch (error: unknown) {
+        // PostgreSQL error with code property for constraint violations
+        if (error instanceof Error && 'code' in error && (error as { code: string }).code === '23505') {
           // Unique constraint violation
           throw new TRPCError({
             code: 'CONFLICT',
@@ -334,7 +368,7 @@ export const attendanceRouter = router({
         WHERE deleted_at IS NULL
       `;
 
-      const queryParams: any[] = [];
+      const queryParams: QueryParam[] = [];
 
       if (category) {
         queryParams.push(category);

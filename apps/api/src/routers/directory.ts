@@ -1,7 +1,17 @@
 import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
-import { queryWithTenant } from '../db';
+import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+
+/** Member row returned from get_directory_members database function */
+interface DirectoryMemberRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  phone: string | null;
+  membership_status: string;
+}
 
 export const directoryRouter = router({
   // ============================================================================
@@ -179,7 +189,7 @@ export const directoryRouter = router({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Person ID required' });
       }
 
-      const { personId: _, ...updateData } = input;
+      const { personId: _personId, ...updateData } = input;
 
       // Check if settings exist
       const existing = await queryWithTenant(
@@ -191,7 +201,7 @@ export const directoryRouter = router({
       if (existing.rows.length > 0) {
         // Update existing settings
         const setClauses: string[] = [];
-        const values: any[] = [];
+        const values: QueryParam[] = [];
         let paramIndex = 1;
 
         if (updateData.showInDirectory !== undefined) {
@@ -283,7 +293,7 @@ export const directoryRouter = router({
       const tenantId = ctx.tenantId!;
 
       // Get all directory members
-      const result = await queryWithTenant(
+      const result = await queryWithTenant<DirectoryMemberRow>(
         tenantId,
         `SELECT id, first_name, last_name, email, phone, membership_status
          FROM get_directory_members($1::uuid)
@@ -296,7 +306,7 @@ export const directoryRouter = router({
       if (input.format === 'csv') {
         // Generate CSV
         const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Membership Status'];
-        const rows = members.map((m: any) => [
+        const rows = members.map((m) => [
           m.first_name,
           m.last_name,
           m.email || '',

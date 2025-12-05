@@ -151,7 +151,8 @@ export function BulletinCanvasEditor({
     } else if (dirty && saveStatus !== 'saving') {
       setSaveStatus('unsaved');
     }
-  }, [layout, isLocked]); // DO NOT include saveStatus to avoid loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally exclude saveStatus to avoid save-loop; comment above explains
+  }, [layout, isLocked]);
 
   // Autosave timer: schedule whenever dirty state changes
   useEffect(() => {
@@ -181,6 +182,7 @@ export function BulletinCanvasEditor({
         clearTimeout(autosaveTimerRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSave uses refs internally; including it causes unnecessary re-registration
   }, [isDirty, isLocked]);
 
   // Browser navigation protection
@@ -567,6 +569,7 @@ export function BulletinCanvasEditor({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleBlockDelete/handleBlockUpdate/showDriftTest use stable refs; including them causes re-registration on every render
   }, [selectedBlockId, currentPage, isLocked, currentPageNumber]);
 
   const handleDragStart = (event: DragStartEvent) => {

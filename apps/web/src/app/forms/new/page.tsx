@@ -145,7 +145,7 @@ export default function NewFormPage() {
 
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>Note:</strong> After creating the form, you'll be able to add custom fields
+                <strong>Note:</strong> After creating the form, you&apos;ll be able to add custom fields
                 (text, email, dropdown, etc.) on the form detail page.
               </p>
             </div>

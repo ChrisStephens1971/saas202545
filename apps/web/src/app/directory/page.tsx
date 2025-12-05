@@ -55,7 +55,7 @@ export default function DirectoryPage() {
         <CardContent className="py-4">
           <p className="text-base text-gray-700">
             This directory respects member privacy settings. Only information that members have chosen to share is displayed.
-            To update your privacy preferences, click "Privacy Settings" above.
+            To update your privacy preferences, click &quot;Privacy Settings&quot; above.
           </p>
         </CardContent>
       </Card>
@@ -103,6 +103,7 @@ export default function DirectoryPage() {
                 {/* Photo */}
                 {member.photo_url && (
                   <div className="mb-4 flex justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- Dynamic member photo from external URL; dimensions unknown */}
                     <img
                       src={member.photo_url}
                       alt={`${member.first_name} ${member.last_name}`}

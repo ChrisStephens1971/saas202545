@@ -158,6 +158,7 @@ export function decryptSecret(ciphertext: string): string {
  */
 export function validateEncryptionConfig(): void {
   // Import inline to avoid circular dependency issues at module load time
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { IS_PROD_LIKE } = require('../config/env');
   const isProduction = IS_PROD_LIKE;
 

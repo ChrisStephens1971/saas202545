@@ -1,6 +1,6 @@
 import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
-import { queryWithTenant } from '../db';
+import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
 
 interface Event {
@@ -55,7 +55,7 @@ export const eventsRouter = router({
         WHERE deleted_at IS NULL
       `;
 
-      const queryParams: any[] = [];
+      const queryParams: QueryParam[] = [];
 
       if (startDate) {
         queryParams.push(new Date(startDate));
@@ -78,7 +78,7 @@ export const eventsRouter = router({
         ${endDate ? `AND start_at <= $${startDate ? '2' : '1'}` : ''}
       `;
 
-      const countParams: any[] = [];
+      const countParams: QueryParam[] = [];
       if (startDate) countParams.push(new Date(startDate));
       if (endDate) countParams.push(new Date(endDate));
 

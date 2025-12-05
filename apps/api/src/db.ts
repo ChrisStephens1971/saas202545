@@ -7,6 +7,29 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 /**
+ * Type for SQL query parameters - covers all valid PostgreSQL parameter types.
+ * Using this instead of `any` provides better type safety while remaining flexible.
+ *
+ * Includes:
+ * - Primitives: string, number, boolean, null, undefined
+ * - Date objects for timestamp handling
+ * - Buffer for binary data
+ * - Arrays for PostgreSQL array types and IN clauses
+ * - Objects for JSON/JSONB columns (serialized automatically by pg driver)
+ */
+export type QueryParam =
+  | string
+  | number
+  | boolean
+  | null
+  | Date
+  | Buffer
+  | undefined
+  | string[]
+  | number[]
+  | Record<string, unknown>;
+
+/**
  * SECURITY FIX (H8/H9): SSL Configuration
  *
  * SSL mode options (controlled by DATABASE_SSL environment variable):
@@ -86,10 +109,10 @@ export async function setTenantContext(tenantId: string): Promise<void> {
  * SECURITY: Uses parameterized set_config to prevent SQL injection.
  * Never use string interpolation for tenant context.
  */
-export async function queryWithTenant<T extends QueryResultRow = any>(
+export async function queryWithTenant<T extends QueryResultRow = QueryResultRow>(
   tenantId: string,
   queryText: string,
-  values?: any[]
+  values?: unknown[]
 ): Promise<QueryResult<T>> {
   const client = await db.connect();
   try {

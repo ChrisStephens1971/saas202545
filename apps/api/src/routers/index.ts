@@ -12,6 +12,19 @@ import { donationsRouter } from './donations';
 import { communicationsRouter } from './communications';
 import { directoryRouter } from './directory';
 import { prayersRouter } from './prayers';
+import { sermonsRouter } from './sermons';
+import { sermonHelperRouter } from './sermonHelper';
+import { aiRouter } from './ai';
+import { aiSettingsRouter } from './aiSettings';
+import { songsRouter } from './songs';
+import { analyticsRouter } from './analytics';
+import { orgRouter } from './org';
+import { tenantsRouter } from './tenants';
+import { thankYouNotesRouter } from './thankYouNotes';
+import { scriptureRouter } from './scripture';
+import { preachRouter } from './preach';
+import { adminAiUsageRouter } from './adminAiUsage';
+import { adminTenantPlanRouter } from './adminTenantPlan';
 
 export const appRouter = router({
   health: healthRouter,
@@ -27,6 +40,19 @@ export const appRouter = router({
   communications: communicationsRouter,
   directory: directoryRouter,
   prayers: prayersRouter,
+  sermons: sermonsRouter,
+  sermonHelper: sermonHelperRouter,
+  ai: aiRouter,
+  aiSettings: aiSettingsRouter,
+  songs: songsRouter,
+  analytics: analyticsRouter,
+  org: orgRouter,
+  tenants: tenantsRouter,
+  thankYouNotes: thankYouNotesRouter,
+  scripture: scriptureRouter,
+  preach: preachRouter,
+  adminAiUsage: adminAiUsageRouter,
+  adminTenantPlan: adminTenantPlanRouter,
 });
 
 export type AppRouter = typeof appRouter;

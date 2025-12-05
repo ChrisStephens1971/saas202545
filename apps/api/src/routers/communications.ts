@@ -1,6 +1,6 @@
 import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
-import { queryWithTenant } from '../db';
+import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
 
 export const communicationsRouter = router({
@@ -26,7 +26,7 @@ export const communicationsRouter = router({
         FROM communication_template
         WHERE deleted_at IS NULL
       `;
-      const queryParams: any[] = [];
+      const queryParams: QueryParam[] = [];
 
       if (communicationType !== undefined) {
         queryParams.push(communicationType);
@@ -50,7 +50,7 @@ export const communicationsRouter = router({
         ${communicationType !== undefined ? `AND communication_type = $1` : ''}
         ${isActive !== undefined ? `AND is_active = $${communicationType !== undefined ? 2 : 1}` : ''}
       `;
-      const countParams: any[] = [];
+      const countParams: QueryParam[] = [];
       if (communicationType !== undefined) countParams.push(communicationType);
       if (isActive !== undefined) countParams.push(isActive);
 
@@ -134,7 +134,7 @@ export const communicationsRouter = router({
       const { id, ...updateData } = input;
 
       const setClauses: string[] = [];
-      const values: any[] = [];
+      const values: QueryParam[] = [];
       let paramIndex = 1;
 
       if (updateData.name) {
@@ -220,7 +220,7 @@ export const communicationsRouter = router({
         FROM communication_campaign
         WHERE deleted_at IS NULL
       `;
-      const queryParams: any[] = [];
+      const queryParams: QueryParam[] = [];
 
       if (status !== undefined) {
         queryParams.push(status);
@@ -244,7 +244,7 @@ export const communicationsRouter = router({
         ${status !== undefined ? `AND status = $1` : ''}
         ${communicationType !== undefined ? `AND communication_type = $${status !== undefined ? 2 : 1}` : ''}
       `;
-      const countParams: any[] = [];
+      const countParams: QueryParam[] = [];
       if (status !== undefined) countParams.push(status);
       if (communicationType !== undefined) countParams.push(communicationType);
 
@@ -333,7 +333,7 @@ export const communicationsRouter = router({
       const { id, ...updateData } = input;
 
       const setClauses: string[] = [];
-      const values: any[] = [];
+      const values: QueryParam[] = [];
       let paramIndex = 1;
 
       if (updateData.name) {
@@ -424,7 +424,7 @@ export const communicationsRouter = router({
         FROM communication_log
         WHERE 1=1
       `;
-      const queryParams: any[] = [];
+      const queryParams: QueryParam[] = [];
 
       if (campaignId !== undefined) {
         queryParams.push(campaignId);
@@ -454,7 +454,7 @@ export const communicationsRouter = router({
         ${personId !== undefined ? `AND person_id = $${campaignId !== undefined ? 2 : 1}` : ''}
         ${status !== undefined ? `AND status = $${(campaignId !== undefined ? 1 : 0) + (personId !== undefined ? 1 : 0) + 1}` : ''}
       `;
-      const countParams: any[] = [];
+      const countParams: QueryParam[] = [];
       if (campaignId !== undefined) countParams.push(campaignId);
       if (personId !== undefined) countParams.push(personId);
       if (status !== undefined) countParams.push(status);

@@ -1,6 +1,6 @@
 import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
-import { queryWithTenant } from '../db';
+import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
 
 export const prayersRouter = router({
@@ -33,7 +33,7 @@ export const prayersRouter = router({
         LEFT JOIN person p ON pr.person_id = p.id
         WHERE pr.deleted_at IS NULL
       `;
-      const queryParams: any[] = [];
+      const queryParams: QueryParam[] = [];
 
       if (status !== undefined) {
         queryParams.push(status);
@@ -69,7 +69,7 @@ export const prayersRouter = router({
         ${personId !== undefined ? `AND person_id = $${(status !== undefined ? 1 : 0) + (visibility !== undefined ? 1 : 0) + 1}` : ''}
         ${isUrgent !== undefined ? `AND is_urgent = $${(status !== undefined ? 1 : 0) + (visibility !== undefined ? 1 : 0) + (personId !== undefined ? 1 : 0) + 1}` : ''}
       `;
-      const countParams: any[] = [];
+      const countParams: QueryParam[] = [];
       if (status !== undefined) countParams.push(status);
       if (visibility !== undefined) countParams.push(visibility);
       if (personId !== undefined) countParams.push(personId);
@@ -183,7 +183,7 @@ export const prayersRouter = router({
       const { id, ...updateData } = input;
 
       const setClauses: string[] = [];
-      const values: any[] = [];
+      const values: QueryParam[] = [];
       let paramIndex = 1;
 
       if (updateData.title) {
