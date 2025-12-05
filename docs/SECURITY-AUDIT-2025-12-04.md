@@ -42,6 +42,21 @@ If the critical and high-severity issues are addressed according to the remediat
 
 ---
 
+## Remediation Status
+
+> **All Critical, High, and targeted Medium issues from this audit have been remediated.**
+
+| Phase | Status | Issues Addressed | Documentation |
+|-------|--------|------------------|---------------|
+| Phase 1 – Critical | **Complete** | C1, C2, C3, C4, C7, C8 | [SECURITY-REMEDIATION-PHASE-1-2025-12-04.md](SECURITY-REMEDIATION-PHASE-1-2025-12-04.md) |
+| Phase 2 – High | **Complete** | H1–H12 + Security Headers | [SECURITY-REMEDIATION-PHASE-2-2025-12-04.md](SECURITY-REMEDIATION-PHASE-2-2025-12-04.md) |
+| Phase 2.5 – Typing | **Complete** | NODE_ENV type safety | [SECURITY-REMEDIATION-PHASE-2-5-2025-12-04.md](SECURITY-REMEDIATION-PHASE-2-5-2025-12-04.md) |
+| Phase 3 – Hardening | **Complete** | CORS, CSRF, Gitleaks, Logging, Docker | [SECURITY-REMEDIATION-PHASE-3-2025-12-04.md](SECURITY-REMEDIATION-PHASE-3-2025-12-04.md) |
+
+**Canonical status document:** [SECURITY-STATUS.md](SECURITY-STATUS.md)
+
+---
+
 ## 2. Methodology
 
 ### 2.1 Scope
