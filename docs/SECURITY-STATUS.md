@@ -76,6 +76,7 @@ The platform now meets a strong security baseline suitable for production use in
 - Test failures block builds — Phase 2
 - Gitleaks secrets scanning in CI — Phase 3
 - Gitleaks allowlist configured for documentation examples — 2025-12-05
+- High severity npm audit vulnerabilities remediated (glob, jws) — 2025-12-05
 
 **Gitleaks Configuration (`.gitleaks.toml`):**
 - Real secrets in code/config will fail the scan
