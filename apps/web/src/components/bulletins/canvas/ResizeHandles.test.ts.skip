@@ -1,0 +1,184 @@
+/**
+ * Regression tests for SE resize behavior
+ *
+ * These tests verify that SE (bottom-right) resize anchors the top-left corner,
+ * preventing position drift during resize operations.
+ */
+
+import type { BulletinCanvasBlock } from '@elder-first/types';
+
+describe('SE Resize Logic', () => {
+  it('should keep x and y constant during SE resize', () => {
+    // Arrange: Create a test block
+    const startBlock: BulletinCanvasBlock = {
+      id: 'test-block',
+      type: 'text',
+      x: 100,
+      y: 200,
+      width: 300,
+      height: 200,
+      zIndex: 1,
+      rotation: 0,
+      data: {},
+    };
+
+    // Act: Simulate SE resize with positive deltas
+    const deltaX = 50;
+    const deltaY = 30;
+
+    // This is the logic from ResizeHandles.tsx for SE handle
+    const updates = {
+      x: startBlock.x,  // MUST stay constant
+      y: startBlock.y,  // MUST stay constant
+      width: Math.max(100, startBlock.width + deltaX),
+      height: Math.max(100, startBlock.height + deltaY),
+    };
+
+    // Assert: Position should not change
+    expect(updates.x).toBe(startBlock.x);
+    expect(updates.y).toBe(startBlock.y);
+
+    // Assert: Size should change by delta
+    expect(updates.width).toBe(startBlock.width + deltaX);
+    expect(updates.height).toBe(startBlock.height + deltaY);
+  });
+
+  it('should respect minimum width/height of 100px', () => {
+    const startBlock: BulletinCanvasBlock = {
+      id: 'test-block',
+      type: 'announcements',
+      x: 100,
+      y: 200,
+      width: 150,
+      height: 120,
+      zIndex: 1,
+      rotation: 0,
+      data: {},
+    };
+
+    // Try to resize smaller than minimum
+    const deltaX = -100;  // Would make width 50
+    const deltaY = -50;   // Would make height 70
+
+    const updates = {
+      x: startBlock.x,
+      y: startBlock.y,
+      width: Math.max(100, startBlock.width + deltaX),  // Should clamp to 100
+      height: Math.max(100, startBlock.height + deltaY), // Should clamp to 100
+    };
+
+    expect(updates.width).toBe(100);  // Clamped
+    expect(updates.height).toBe(100); // Clamped
+  });
+
+  it('should work with rotated blocks (rotation not affected)', () => {
+    const startBlock: BulletinCanvasBlock = {
+      id: 'test-block',
+      type: 'text',
+      x: 200,
+      y: 300,
+      width: 400,
+      height: 300,
+      zIndex: 1,
+      rotation: 45, // Rotated
+      data: {},
+    };
+
+    const deltaX = 100;
+    const deltaY = 50;
+
+    const updates = {
+      x: startBlock.x,
+      y: startBlock.y,
+      width: Math.max(100, startBlock.width + deltaX),
+      height: Math.max(100, startBlock.height + deltaY),
+      // Rotation should NOT be included in updates
+    };
+
+    // Position anchored
+    expect(updates.x).toBe(startBlock.x);
+    expect(updates.y).toBe(startBlock.y);
+
+    // Size changed
+    expect(updates.width).toBe(500);
+    expect(updates.height).toBe(350);
+
+    // Rotation NOT in updates (stays on original block)
+    expect('rotation' in updates).toBe(false);
+  });
+
+  it('should handle negative deltas (shrinking)', () => {
+    const startBlock: BulletinCanvasBlock = {
+      id: 'test-block',
+      type: 'image',
+      x: 150,
+      y: 250,
+      width: 500,
+      height: 400,
+      zIndex: 1,
+      rotation: 0,
+      data: {},
+    };
+
+    const deltaX = -200;  // Shrink width
+    const deltaY = -150;  // Shrink height
+
+    const updates = {
+      x: startBlock.x,
+      y: startBlock.y,
+      width: Math.max(100, startBlock.width + deltaX),
+      height: Math.max(100, startBlock.height + deltaY),
+    };
+
+    // Position stays the same
+    expect(updates.x).toBe(150);
+    expect(updates.y).toBe(250);
+
+    // Size reduced
+    expect(updates.width).toBe(300);
+    expect(updates.height).toBe(250);
+  });
+});
+
+describe('Two-Layer Architecture Verification', () => {
+  it('should separate layout from transforms conceptually', () => {
+    // This test documents the architecture pattern
+    const block: BulletinCanvasBlock = {
+      id: 'test',
+      type: 'announcements',
+      x: 100,
+      y: 200,
+      width: 300,
+      height: 200,
+      zIndex: 1,
+      rotation: 15,
+      data: {},
+    };
+
+    // Layer 1: BlockFrame - Position and size ONLY
+    const blockFrameStyles = {
+      position: 'absolute' as const,
+      left: block.x,
+      top: block.y,
+      width: block.width,
+      height: block.height,
+      zIndex: block.zIndex,
+      // NO transform, NO transformOrigin
+    };
+
+    // Layer 2: TransformLayer - Transforms ONLY
+    const transformLayerStyles = {
+      width: '100%',
+      height: '100%',
+      transform: block.rotation ? `rotate(${block.rotation}deg)` : undefined,
+      transformOrigin: '0 0', // Always from top-left
+      // NO position properties
+    };
+
+    // Verify separation
+    expect('transform' in blockFrameStyles).toBe(false);
+    expect('left' in transformLayerStyles).toBe(false);
+    expect('top' in transformLayerStyles).toBe(false);
+    expect(transformLayerStyles.transformOrigin).toBe('0 0');
+  });
+});

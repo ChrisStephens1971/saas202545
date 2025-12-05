@@ -1,0 +1,213 @@
+{
+  "description": "P12: Import Mapping Configurations",
+  "version": "1.0",
+  "mappings": [
+    {
+      "id": "planning_center_default",
+      "name": "Planning Center - Default Service Plan",
+      "tenantId": "example-tenant",
+      "importType": "service_plan",
+      "fieldMappings": {
+        "externalId": "Plan ID",
+        "planDate": "Service Date",
+        "planTitle": "Plan Title",
+        "itemType": "Item Type",
+        "itemTitle": "Item Title",
+        "itemDuration": "Duration",
+        "itemNotes": "Notes",
+        "ccliNumber": "CCLI",
+        "position": "Order"
+      },
+      "defaults": {
+        "itemType": "other"
+      },
+      "transformations": {
+        "itemType": "normalizeItemType",
+        "ccliNumber": "trimAndValidate"
+      },
+      "notes": "Standard mapping for Planning Center Services export"
+    },
+    {
+      "id": "planning_center_songs_only",
+      "name": "Planning Center - Songs Only",
+      "tenantId": "example-tenant",
+      "importType": "service_plan",
+      "fieldMappings": {
+        "externalId": "Plan ID",
+        "planDate": "Date",
+        "itemType": "Type",
+        "itemTitle": "Song Title",
+        "ccliNumber": "CCLI#",
+        "position": "Position"
+      },
+      "defaults": {
+        "itemType": "song"
+      },
+      "filters": {
+        "Type": ["Song", "Hymn", "Worship"]
+      },
+      "notes": "Import only songs/hymns from Planning Center"
+    },
+    {
+      "id": "ccb_service_plan",
+      "name": "Church Community Builder - Service Plan",
+      "tenantId": "example-tenant",
+      "importType": "service_plan",
+      "fieldMappings": {
+        "externalId": "Service_ID",
+        "planDate": "Service_Date",
+        "planTitle": "Service_Name",
+        "itemType": "Element_Type",
+        "itemTitle": "Element_Name",
+        "itemDuration": "Length_Minutes",
+        "itemNotes": "Description",
+        "ccliNumber": "Song_CCLI",
+        "position": "Sequence"
+      },
+      "defaults": {
+        "itemType": "other"
+      },
+      "notes": "Mapping for Church Community Builder exports"
+    },
+    {
+      "id": "custom_spreadsheet",
+      "name": "Custom Church Spreadsheet",
+      "tenantId": "example-tenant",
+      "importType": "service_plan",
+      "fieldMappings": {
+        "externalId": "Week",
+        "planDate": "Sunday Date",
+        "itemType": "Category",
+        "itemTitle": "Title",
+        "itemNotes": "Notes/Lyrics",
+        "ccliNumber": "CCLI",
+        "position": "Order"
+      },
+      "defaults": {
+        "planTitle": "Weekly Service"
+      },
+      "transformations": {
+        "planDate": "parseCustomDate"
+      },
+      "notes": "For churches using custom Excel/Google Sheets"
+    },
+    {
+      "id": "ics_events",
+      "name": "ICS Calendar - Events",
+      "tenantId": "example-tenant",
+      "importType": "events",
+      "fieldMappings": {
+        "uid": "UID",
+        "summary": "SUMMARY",
+        "description": "DESCRIPTION",
+        "location": "LOCATION",
+        "startDate": "DTSTART",
+        "endDate": "DTEND",
+        "recurrence": "RRULE",
+        "organizerEmail": "ORGANIZER"
+      },
+      "notes": "ICS calendar import uses built-in iCal parser, this is for reference"
+    }
+  ],
+  "transformationFunctions": {
+    "normalizeItemType": {
+      "description": "Convert various item type names to standard enum",
+      "logic": "song|hymn|worship → song; reading|scripture → reading; sermon|message|teaching → sermon; announcement|bulletin → announcement; else → other"
+    },
+    "trimAndValidate": {
+      "description": "Trim whitespace and validate CCLI format",
+      "logic": "trim() then check if matches /^\\d+$/"
+    },
+    "parseCustomDate": {
+      "description": "Parse various date formats",
+      "logic": "Try ISO 8601, then MM/DD/YYYY, then DD/MM/YYYY"
+    }
+  },
+  "validationRules": {
+    "service_plan": {
+      "required": ["externalId", "planDate", "itemType", "itemTitle", "position"],
+      "conditionalRequired": {
+        "ccliNumber": "Required when itemType = 'song'"
+      },
+      "businessRules": [
+        "planDate cannot be more than 1 year in the past",
+        "itemDuration cannot exceed 300 minutes",
+        "position must be unique within a plan",
+        "itemTitle max length 100 characters",
+        "itemNotes max length 500 characters"
+      ]
+    },
+    "events": {
+      "required": ["uid", "summary", "startDate"],
+      "businessRules": [
+        "endDate must be after startDate",
+        "summary max length 100 characters",
+        "description max length 2000 characters"
+      ]
+    }
+  },
+  "sampleCSVFormats": {
+    "planning_center_service_plan": {
+      "headers": [
+        "Plan ID",
+        "Service Date",
+        "Plan Title",
+        "Item Type",
+        "Item Title",
+        "Duration",
+        "Notes",
+        "CCLI",
+        "Order"
+      ],
+      "sampleRows": [
+        ["12345", "2025-11-17", "Sunday Morning Worship", "song", "Amazing Grace", "5", "Key of G", "22025", "1"],
+        ["12345", "2025-11-17", "Sunday Morning Worship", "reading", "Psalm 23", "3", "Read by John", "", "2"],
+        ["12345", "2025-11-17", "Sunday Morning Worship", "sermon", "The Good Shepherd", "30", "Pastor Smith", "", "3"]
+      ]
+    },
+    "custom_simple": {
+      "headers": ["Week", "Sunday Date", "Category", "Title", "CCLI", "Order"],
+      "sampleRows": [
+        ["Week 46", "11/17/2025", "Song", "How Great Thou Art", "14181", "1"],
+        ["Week 46", "11/17/2025", "Song", "Holy Holy Holy", "1156", "2"],
+        ["Week 46", "11/17/2025", "Message", "God's Holiness", "", "3"]
+      ]
+    }
+  },
+  "importSettings": {
+    "idempotency": {
+      "service_plan": "Uses externalId + planDate + position for uniqueness",
+      "events": "Uses UID from ICS or externalId from CSV"
+    },
+    "updateBehavior": {
+      "default": "Update existing records when found",
+      "options": ["skip", "update", "create_new"]
+    },
+    "errorHandling": {
+      "validation_failed": "Skip row and add to validation report",
+      "duplicate_found": "Update if updateBehavior=update, else skip",
+      "missing_required": "Skip row and report error with line number"
+    }
+  },
+  "uiSettings": {
+    "mappingBuilder": {
+      "steps": [
+        "Upload sample CSV file",
+        "Auto-detect format or select template",
+        "Map CSV columns to system fields (drag & drop)",
+        "Set defaults and transformations",
+        "Preview first 5 rows mapped",
+        "Save mapping configuration",
+        "Run import"
+      ]
+    },
+    "validationReport": {
+      "display": [
+        "Total rows processed",
+        "Created / Updated / Skipped / Errors",
+        "List of errors with line numbers",
+        "Download full report as CSV"
+      ]
+    }
+  }
+}

@@ -1,10 +1,155 @@
-# CLAUDE.md - Azure SaaS Project
+# CLAUDE.md
 
-**Project:** saas202545
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+**Elder-First Church Platform** - A multi-tenant church management platform for small churches (sub-200 members).
+
+**Project Code:** saas202545
 **Created:** 2025-11-14
-**Template:** Azure (azure)
 **Platform:** Microsoft Azure
-**Path:** C:\devop\saas202545
+**Current Phase:** Planning (see `.project-state.json`)
+
+### Application Stack
+
+- **Frontend:** Next.js 14 PWA with React Native wrapper (future)
+- **Backend:** Node/TypeScript with tRPC + REST for public endpoints
+- **Database:** Azure Database for PostgreSQL Flexible Server
+- **Files:** Azure Blob + CDN
+- **Jobs:** Azure Functions (Timers/Queues)
+- **Realtime:** Azure Web PubSub (optional for V1)
+- **Auth:** Entra External ID (B2C) with roles: Admin, Editor, Submitter, Viewer, Kiosk
+
+### Core Features (V1 Scope)
+
+1. **Messaging** - Communication for members
+2. **Events/RSVP** - Event management with RSVP tracking
+3. **People/Groups** - Member and group management
+4. **Giving** - Basic contribution tracking
+5. **Bulletin Generator** - Weekly bulletin creation (PDF, Slides, Web/Email)
+
+---
+
+## Quick Reference
+
+### Current Project Status
+
+Check project phase: `cat .project-state.json | jq '.workflow.currentPhase'`
+
+**Current Phase:** Planning
+**Next Steps:** Move to Foundation phase when planning artifacts complete
+
+### Key Files & Directories
+
+- `prompts/claude/claude_runbook.yaml` - Task definitions and execution order
+- `artifacts/` - All task outputs (specs, schemas, code)
+- `.project-state.json` - Current phase and metadata
+- `.project-workflow.json` - Checklist and progress tracking
+- `infrastructure/` - Azure IaC (Bicep/Terraform)
+- `docs/` - Product specifications
+
+### Common Commands (Once App Exists)
+
+```bash
+# Check GitHub Actions
+gh run list --limit 5
+
+# View project status
+cat .project-state.json
+
+# View pending tasks
+cat .project-workflow.json | jq '.phases[.currentPhase].checklist'
+```
+
+---
+
+## Task Execution System
+
+This project uses a structured task execution system based on `prompts/claude/claude_runbook.yaml`.
+
+### Task Workflow
+
+1. **Read the runbook:** Tasks are defined in `prompts/claude/claude_runbook.yaml` with:
+   - Dependencies (`depends_on`)
+   - Artifacts to produce (saved to `/artifacts`)
+   - Acceptance criteria
+   - Detailed prompts
+
+2. **Execute tasks in order:** Follow dependency chain (e.g., P1 → P3 → P5 → P6 → P8 → P9 → P10 → P11 → P18 for V1)
+
+3. **Save artifacts:** All outputs MUST be saved to `/artifacts` using exact filenames from runbook
+
+4. **Validate:** Check acceptance criteria after each task before proceeding
+
+### Key Tasks Completed
+
+- ✅ **P1:** Product V1 Contract (`P1_v1_contract.md`)
+- ✅ **P2:** System Architecture (`P2_architecture.md`)
+- ✅ **P3:** Database Schema (`P3_schema.sql`)
+- ✅ **P4:** Auth & Roles (`P4_roles.md`, `P4_middleware.ts`)
+- ✅ **P5:** API Surface (`P5_api.md`, `P5_routers.ts`)
+- ✅ **P6:** Admin UI Wireframes (`P6_wireframes.md`)
+- ✅ **P8:** Bulletin Issues (`P8_bulletin_issues.md`)
+- ✅ **P9:** Design Tokens & Templates (`P9_tokens.css`, `P9_templates.md`)
+- ✅ **P10:** Bulletin Renderer (`P10_renderer.ts`)
+- ✅ **P11:** Locking & Audit (`P11_locking.ts`, `P11_audit.sql`)
+- ✅ **P16:** Infrastructure (`P16_infra.bicep`, `P16_pipelines.yml`)
+- ✅ **P18:** End-to-End Tests (`P18_playwright.spec.ts`)
+
+### Database Schema
+
+PostgreSQL with Row-Level Security (RLS). Main tables:
+- `Person`, `Household`, `Group` - People management
+- `Event`, `RSVP` - Events and responses
+- `Announcement`, `ServiceItem` - Content for bulletins
+- `BrandPack`, `BulletinIssue` - Bulletin generation
+- `Contribution`, `Fund` - Giving tracking
+- `Attachment`, `RoleAssignment`, `AuditLog` - Supporting tables
+
+All tables include `tenant_id` with RLS policies enforcing tenant isolation.
+
+Schema: `artifacts/P3_schema.sql`
+
+### API Structure
+
+tRPC-based API with routers:
+- `people` - Search, get, upsert persons
+- `events` - List, create, update, RSVP management
+- `announcements` - List active, create, approve
+- `services` - List by date, upsert items, enforce CCLI
+- `brandpack` - Get active, set for week
+- `bulletin` - Create issue, build preview, lock, reopen, generate artifacts
+- `giving` - Create contribution, list funds, export statements
+- `import` - ICS upload, Planning Center CSV
+
+Details: `artifacts/P5_api.md`, `artifacts/P5_routers.ts`
+
+### Bulletin Generator System
+
+The bulletin generator is the flagship feature. Key constraints:
+
+**Content Constraints:**
+- Announcement title: ≤60 characters
+- Announcement body: ≤300 characters
+- ServiceItem requires CCLI# for songs before lock
+- Weekly lock enforced (Thursday 2pm default)
+
+**Workflow States:**
+1. **Draft** - Intake form open, edits allowed
+2. **Built** - Preview generated, can still edit
+3. **Locked** - No edits, timestamp on emergency reopen
+
+**Output Formats:**
+- PDF bulletin (print-ready)
+- Slide loop (ProPresenter-compatible)
+- Web/Email version
+
+**Implementation:**
+- Renderer: `artifacts/P10_renderer.ts`
+- Locking logic: `artifacts/P11_locking.ts`
+- Templates: `artifacts/P9_templates.md`
+- Design tokens: `artifacts/P9_tokens.css`
 
 ---
 
@@ -185,73 +330,86 @@ az deployment sub create \
 
 ---
 
-## 🏗️ Infrastructure as Code
+## Development Commands
 
-This project includes both **Terraform** and **Bicep** scaffolding.
+### Application Development
 
-### Terraform
-
-Located in `infrastructure/terraform/`:
+Once the application is scaffolded, typical commands will be:
 
 ```bash
-cd infrastructure/terraform
+# Frontend (Next.js)
+npm install          # Install dependencies
+npm run dev          # Start dev server (port 3045)
+npm run build        # Production build
+npm run lint         # Run ESLint
+npm run type-check   # TypeScript validation
 
-# Initialize
-terraform init
+# Backend (Node/TypeScript with tRPC)
+npm install          # Install dependencies
+npm run dev          # Start dev server (port 8045)
+npm run build        # Compile TypeScript
+npm run test         # Run tests
+npm run test:watch   # Watch mode
 
-# Plan
-terraform plan -var-file="environments/dev.tfvars"
-
-# Apply
-terraform apply -var-file="environments/dev.tfvars"
+# Database
+# PostgreSQL connection details in .env.local
+npm run db:migrate   # Run migrations
+npm run db:seed      # Seed database
+npm run db:studio    # Open DB UI (Prisma Studio or similar)
 ```
 
-**Key Files:**
-- `main.tf` - Main infrastructure
-- `variables.tf` - Variable definitions
-- `outputs.tf` - Output values
-- `modules/naming/` - Naming convention module
-- `environments/*.tfvars` - Environment-specific variables
-
-### Bicep
-
-Located in `infrastructure/bicep/`:
+### Testing
 
 ```bash
-cd infrastructure/bicep
+# Unit tests
+npm test                    # Run all tests
+npm test -- <file>          # Run specific test file
+npm test -- --coverage      # Coverage report
 
-# Deploy
-az deployment group create \
-  --resource-group rg-vrd-202545-dev-eus2-app \
-  --template-file main.bicep \
-  --parameters @environments/dev.parameters.json
+# E2E tests (Playwright)
+npx playwright test                           # Run all E2E tests
+npx playwright test --ui                      # Interactive UI mode
+npx playwright test bulletin-generator.spec   # Specific test
 ```
 
-**Key Files:**
-- `main.bicep` - Main infrastructure
-- `modules/naming.bicep` - Naming convention module
-- `environments/*.parameters.json` - Environment-specific parameters
+See: `artifacts/P18_playwright.spec.ts` for E2E test structure
 
 ---
 
-## 🚀 CI/CD Pipelines
+## 🏗️ Infrastructure as Code
 
-### GitHub Actions
+This project uses **Bicep** for Azure infrastructure (Terraform available as alternative).
 
-Workflows in `.github/workflows/`:
+### Bicep Deployment
 
-- `terraform-plan.yml` - Run Terraform plan on PR
-- `terraform-apply.yml` - Apply Terraform on merge to main
-- `azure-validation.yml` - Validate naming and tagging compliance
-- `bicep-deploy.yml` - Deploy Bicep templates
+Located in `infrastructure/bicep/` and `artifacts/P16_infra.bicep`:
 
-### Azure DevOps
+```bash
+# Deploy to Azure
+az deployment group create \
+  --resource-group rg-vrd-202545-dev-eus2-app \
+  --template-file artifacts/P16_infra.bicep \
+  --parameters env=dev org=vrd proj=202545
+```
 
-Pipeline templates in `infrastructure/pipelines/`:
+**Infrastructure includes:**
+- Azure Database for PostgreSQL Flexible Server
+- App Service for Next.js frontend
+- Azure Functions for background jobs
+- Azure Blob Storage + CDN for files
+- Azure Key Vault for secrets
+- Azure Web PubSub (optional)
 
-- `azure-pipelines.yml` - Main pipeline
-- `terraform-pipeline.yml` - Terraform-specific pipeline
-- `bicep-pipeline.yml` - Bicep-specific pipeline
+### CI/CD Pipelines
+
+GitHub Actions workflows defined in `artifacts/P16_pipelines.yml`:
+
+- **Build & Test** - Run on every PR
+- **Deploy Dev** - Auto-deploy to dev on main branch
+- **Deploy Staging** - Manual approval
+- **Deploy Production** - Manual approval + smoke tests
+
+**Note:** Workflows should be created in `.github/workflows/` directory once application is scaffolded.
 
 ---
 
@@ -269,27 +427,27 @@ Pipeline templates in `infrastructure/pipelines/`:
 
 ### 🔧 How to Monitor
 
-**Before every commit:**
+**Check GitHub Actions status:**
 ```bash
-# Check GitHub Actions health
-bash scripts/check-github-health.sh
-
 # View latest workflow runs
 gh run list --limit 5
 
 # View specific failure
 gh run view --log
+
+# Check workflow status
+gh run watch
 ```
 
-**Automated checking** - Pre-push hook:
-- Git hook prevents pushing if latest workflow failed
-- Located: `.githooks/pre-push`
+**Git hooks** - Pre-commit validation:
+- Git hooks in `.githooks/` directory
 - Enable: `git config core.hooksPath .githooks`
+- Validates placeholders, secrets, commit messages
 
 ### 📋 Daily Health Check
 
 **Every morning:**
-1. Run `bash scripts/check-github-health.sh`
+1. Check GitHub Actions status: `gh run list --limit 5`
 2. If failures found → Fix immediately
 3. If warnings found → Investigate and fix
 4. Check security alerts: `gh api repos/{owner}/{repo}/dependabot/alerts`
@@ -366,7 +524,7 @@ cat .project-workflow.json | jq '.phases[.currentPhase].completionPercent'
 ```
 
 **Daily workflow:**
-1. **Morning:** Run `bash scripts/check-github-health.sh`
+1. **Morning:** Check project status and GitHub Actions
 2. **Work:** Complete tasks from current phase checklist
 3. **Evening:** Update `.project-workflow.json` with progress
 4. **Always:** Fix GitHub Actions failures immediately
@@ -575,10 +733,10 @@ cat .workflow-config.json | jq '.strictMode, .enforcePhaseTransitions, .enforceD
 #### Phase Transition Validation (MANDATORY)
 
 **When user requests phase change:**
-1. Read current and target phase
+1. Read current and target phase from `.project-state.json`
 2. Check `.project-workflow.json` → `phaseTransitions.<current>_to_<target>.mandatory`
 3. If mandatory: true → VALIDATE CRITERIA FIRST
-4. Run validation: `bash scripts/validate-phase-transition.sh <current> <target>`
+4. Validate criteria programmatically (check GitHub Actions, tests, etc.)
 5. If validation fails → BLOCK transition
 6. Show what criteria are missing
 7. Require completion OR explicit override
@@ -588,8 +746,6 @@ cat .workflow-config.json | jq '.strictMode, .enforcePhaseTransitions, .enforceD
 User: "I'm ready to move to Development phase"
 
 Claude: Validating Foundation → Development transition...
-
-Running: bash scripts/validate-phase-transition.sh foundation development
 
 Checking Foundation → Development criteria:
   ✅ Project scaffolded
@@ -602,18 +758,15 @@ Checking Foundation → Development criteria:
 
 Required actions:
 1. Fix GitHub Actions failures
-   Run: bash scripts/check-github-health.sh
-   View failures: gh run list
+   View failures: gh run list --limit 5
+   Check logs: gh run view --log
 
 2. Write and pass initial tests
    Create test files in tests/ or __tests__/
    Run: npm test (or equivalent)
 
-To override this requirement (not recommended):
+To override (not recommended):
   Say: "override phase transition with reason: [your reason]"
-  
-Or disable strict mode:
-  bash scripts/toggle-workflow-strict.sh disable
 
 Should I help you fix the GitHub Actions failures first?
 ```
@@ -649,16 +802,15 @@ What would you like to work on first in Development phase?
 ```
 Claude: Good morning! Checking daily practices...
 
-Running: bash scripts/validate-daily-practices.sh
-
-=== Validating Daily Practices ===
-GitHub health check (today): ❌ (last check: 2025-11-08)
-  Run: bash scripts/check-github-health.sh
+Checking project status:
+- Current phase: foundation (65% complete)
+- GitHub Actions: ❌ (3 failing workflows)
+- Last commit: 2025-11-13
 
 ❌ Daily practices not completed
 
-Before we proceed with work today, let's run the GitHub health check.
-Shall I check GitHub Actions status now?
+Before we proceed with work today, let's check GitHub Actions status.
+Shall I run: gh run list --limit 5
 ```
 
 **Before commit (validation):**
@@ -681,8 +833,8 @@ To bypass (not recommended):
 Claude: I see the commit was blocked because daily practices weren't completed.
 This is strict mode enforcement to ensure code quality.
 
-Would you like me to run the GitHub health check now?
-  bash scripts/check-github-health.sh
+Would you like me to check GitHub Actions status now?
+  gh run list --limit 5
 ```
 
 #### Override Process
@@ -707,9 +859,9 @@ Claude:
 ```
 User: "disable strict mode"
 
-Claude: You can disable strict mode temporarily:
+Claude: To disable strict mode, update `.workflow-config.json`:
 
-bash scripts/toggle-workflow-strict.sh disable
+Set: "strictMode": false
 
 This will:
   - Disable phase transition validation
@@ -721,10 +873,9 @@ This will:
   - Technical debt accumulation
   - Reduced project discipline
 
-Re-enable when ready:
-  bash scripts/toggle-workflow-strict.sh enable
+Re-enable by setting "strictMode": true
 
-Should I disable strict mode for you?
+Should I update the config for you?
 ```
 
 **Option 3: Bypass git hooks**
@@ -743,11 +894,11 @@ git push --no-verify
   - Secrets detection
 
 Only use in emergencies. Better approach:
-  1. Run: bash scripts/check-github-health.sh
+  1. Check GitHub Actions: gh run list --limit 5
   2. Fix any issues found
   3. Commit normally (hooks will pass)
 
-Would you like to run the health check instead?
+Would you like to check GitHub Actions status instead?
 ```
 
 ### Flexible Mode Behavior
@@ -1014,45 +1165,71 @@ The auto-deallocation system uses `azure-auto-deallocate-config.json` which spec
 
 ## 🧪 Testing & Validation
 
-### Pre-Deployment Validation
-
-Run these checks before deploying:
+### Application Testing (Once App Exists)
 
 ```bash
-# 1. Validate naming
-python C:/devop/.template-system/scripts/azure-name-validator.py \
-  --file infrastructure/resource-inventory.json
+# Unit tests
+npm test                     # Run all unit tests
+npm test -- --coverage       # With coverage report
+npm test -- --watch          # Watch mode for development
 
-# 2. Validate Terraform
-cd infrastructure/terraform
-terraform validate
-terraform fmt -check
+# E2E tests (Playwright)
+npx playwright test                              # All E2E tests
+npx playwright test bulletin-generator.spec.ts   # Specific test suite
+npx playwright test --ui                         # Interactive mode
+npx playwright test --debug                      # Debug mode
 
-# 3. Run Checkov (security/compliance)
-checkov -d infrastructure/terraform
+# Type checking
+npm run type-check           # TypeScript validation
 
-# 4. Validate Bicep
-cd infrastructure/bicep
-az bicep build --file main.bicep
+# Linting
+npm run lint                 # ESLint
+npm run lint:fix             # Auto-fix issues
 ```
 
-### Post-Deployment Validation
+### Infrastructure Validation
+
+Before deploying infrastructure:
 
 ```bash
-# 1. Check deployed resources match naming standard
-python C:/devop/.template-system/scripts/azure-name-validator.py \
-  --subscription <subscription-id>
+# Validate Bicep
+cd infrastructure/bicep
+az bicep build --file main.bicep
+az bicep build --file artifacts/P16_infra.bicep
 
-# 2. Verify tags
+# Validate naming (if using automation)
+python C:/devop/.template-system/scripts/azure-name-validator.py \
+  --file infrastructure/resource-inventory.json
+```
+
+After deployment:
+
+```bash
+# Verify tags
 az resource list \
   --tag Project=202545 \
   --query "[].{name:name, tags:tags}" \
   -o table
 
-# 3. Check policy compliance
+# Check policy compliance
 az policy state list \
   --filter "complianceState eq 'NonCompliant'" \
   -o table
+```
+
+### Database Validation
+
+```bash
+# Test RLS policies
+# Connect as application user and verify tenant isolation
+
+# Run migrations
+npm run db:migrate
+
+# Seed test data
+npm run db:seed
+
+# Verify constraints (bulletin title/body length, CCLI requirements)
 ```
 
 ---
@@ -1128,15 +1305,33 @@ az policy state list \
 
 ## 🚨 Important Notes
 
-1. **Never bypass naming standard** - All resources must follow the pattern
-2. **Always tag resources** - Required tags must be present
-3. **Validate before deploying** - Run validation scripts
-4. **Document exceptions** - Use `infrastructure/EXCEPTIONS.md`
-5. **Test in dev first** - Never deploy directly to production
-6. **Use IaC modules** - Don't manually create resources
-7. **Check costs regularly** - Review Azure Cost Management
+### Application Development
+
+1. **Follow task dependencies** - Execute runbook tasks in order (check `depends_on`)
+2. **Save artifacts correctly** - All outputs go to `/artifacts` with exact filenames
+3. **Validate acceptance criteria** - Check before marking tasks complete
+4. **Content constraints** - Bulletin titles ≤60 chars, bodies ≤300 chars
+5. **Multi-tenant isolation** - All DB queries must respect `tenant_id` RLS
+6. **CCLI enforcement** - Songs require CCLI# before bulletin lock
+
+### Infrastructure & Deployment
+
+1. **Azure naming standard** - All resources follow `{type}-{org}-{proj}-{env}-{region}` pattern
+2. **Required tags** - Org, Project, Environment, Region, Owner, CostCenter
+3. **Validate before deploying** - Test Bicep/Terraform in dev first
+4. **Never deploy to production directly** - Always dev → staging → production
+5. **Check GitHub Actions** - Fix failures immediately, don't let them accumulate
+6. **Use IaC** - Don't manually create Azure resources
+
+### Workflow & Process
+
+1. **Strict mode by default** - Phase transitions require criteria validation
+2. **Daily practices** - Check GitHub Actions, update workflow progress
+3. **Commit frequently** - Minimum once per day during active development
+4. **Document decisions** - Use ADRs in `technical/decisions/`
 
 ---
 
 **Template Version:** 1.0 (Azure)
 **Last Updated:** 2025-11-14
+**Project Phase:** Planning

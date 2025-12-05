@@ -1,0 +1,104 @@
+# Gitleaks Configuration
+# SECURITY FIX (Phase 3 - M3): Secrets scanning configuration
+#
+# This file configures gitleaks to scan for accidentally committed secrets.
+# See: https://github.com/gitleaks/gitleaks
+#
+# @see docs/SECURITY-AUDIT-2025-12-04.md
+
+title = "Elder-First Church Platform Gitleaks Config"
+
+# Extend the default gitleaks rules
+[extend]
+useDefault = true
+
+# Allowlist paths that are intentionally not secrets
+[allowlist]
+  description = "Allowed files and paths"
+
+  # Example environment files (contain placeholder values only)
+  paths = [
+    '''\.env\.example$''',
+    '''\.env\.staging\.example$''',
+    '''\.env\.local\.example$''',
+    # Documentation files with example configs (not real secrets)
+    '''docs/.*\.md$''',
+    '''technical/.*\.md$''',
+    '''CHANGELOG\.md$''',
+    '''README\.md$''',
+    # Test fixtures that may contain fake secrets
+    '''src/__tests__/.*''',
+    '''tests/fixtures/.*''',
+    # docker-compose.yml contains commented examples showing env var patterns
+    # These are templates for users, not actual secrets
+    '''docker-compose\.yml$''',
+    # apps/web/src/auth.ts has JSDoc comments explaining dev credential env vars
+    # Line 143: "Set password env vars in .env.local (e.g., DEV_ADMIN_PASSWORD=yourpassword)"
+    # This is documentation, not an actual secret
+    '''apps/web/src/auth\.ts$''',
+  ]
+
+  # Regexes to ignore (for known false positives)
+  regexes = [
+    # Placeholder values that look like secrets
+    '''dev-secret-DO-NOT-USE-IN-PRODUCTION''',
+    '''dev-secret-change-in-production''',
+    '''your-.*-here''',
+    '''placeholder''',
+    '''xxxxxxxx''',
+    '''<your-.*>''',
+    # Common test values
+    '''test-api-key''',
+    '''mock-secret''',
+    '''dummy-.*-key''',
+    # Development placeholder passwords (docs/examples only)
+    '''changeme123''',
+    '''YourStrongPassword123!''',
+    # Local dev docker defaults (never used in production)
+    '''POSTGRES_PASSWORD=postgres''',
+    # Example Key Vault references (documentation patterns)
+    '''@Microsoft\.KeyVault\(SecretUri=''',
+    # DEV_*_PASSWORD environment variable documentation patterns
+    '''DEV_[A-Z]+_PASSWORD=changeme123''',
+    # Comment example in auth.ts showing env var pattern
+    '''DEV_ADMIN_PASSWORD=yourpassword''',
+  ]
+
+# Additional custom rules for this project
+[[rules]]
+  id = "azure-storage-key"
+  description = "Azure Storage Account Key"
+  regex = '''DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[A-Za-z0-9+/=]{86,}'''
+  secretGroup = 0
+
+[[rules]]
+  id = "azure-connection-string"
+  description = "Azure Service Bus or Event Hub Connection String"
+  regex = '''Endpoint=sb://[^;]+;SharedAccessKeyName=[^;]+;SharedAccessKey=[A-Za-z0-9+/=]+'''
+  secretGroup = 0
+
+[[rules]]
+  id = "jwt-secret"
+  description = "JWT Secret (high entropy string in JWT context)"
+  regex = '''JWT[_-]?SECRET[=:]["']?[A-Za-z0-9+/=]{32,}'''
+  secretGroup = 0
+
+[[rules]]
+  id = "encryption-key"
+  description = "Encryption Key (32+ char hex string in encryption context)"
+  regex = '''ENCRYPTION[_-]?KEY[=:]["']?[A-Fa-f0-9]{64,}'''
+  secretGroup = 0
+
+[[rules]]
+  id = "database-password"
+  description = "Database Password in connection string"
+  regex = '''(?i)(password|pwd)=["']?[^"'\s;]{8,}["']?'''
+  secretGroup = 0
+
+# Path-based rules for sensitive directories
+[[rules]]
+  id = "secrets-in-code"
+  description = "Potential secret in source code"
+  path = '''\.ts$|\.js$|\.tsx$|\.jsx$'''
+  regex = '''(?i)(api[_-]?key|secret[_-]?key|private[_-]?key|access[_-]?token)\s*[:=]\s*["'][A-Za-z0-9+/=]{20,}["']'''
+  secretGroup = 0

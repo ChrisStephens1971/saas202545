@@ -1,0 +1,358 @@
+version: 1
+project: Elder-First Church Platform V1
+date: 2025-11-14
+execution_notes:
+  - Execute tasks strictly by depends_on.
+  - Save outputs to /artifacts using exact filenames in each task's artifacts list.
+  - Validate against acceptance_criteria after each task. If failing, fix and rerun before proceeding.
+  - Do not invent inputs. If blocked, emit the missing inputs explicitly.
+control_protocol:
+  driver_prompt: |
+    You are the orchestrator. Read each task in tasks[].
+    For each task:
+      1) Restate the goal in one sentence.
+      2) Execute the work.
+      3) Produce the artifacts listed.
+      4) Self-check against acceptance_criteria.
+      5) Emit a JSON control block:
+         {"status":"done"|"blocked","task_id":"...", "notes":"...", "next_task_id":"..."}
+  stop_on_failure: true
+  fail_if_artifact_missing: true
+tasks:
+  - id: P1
+    name: Product V1 Contract
+    depends_on: []
+    artifacts: ["P1_v1_contract.md"]
+    acceptance_criteria:
+      - Must/should/won't for Messaging, Events/RSVP, People/Groups, Giving(basic), Bulletin Generator.
+      - 3–5 success metrics and a 12-week roadmap.
+      - Non-goals explicit.
+    prompt: |
+      You are a senior product lead. Produce a concise V1 contract.
+      Audience: sub-200 churches, elder-first UX.
+      Deliverables:
+      1) V1 scope (must/should/won’t) for: Messaging, Events/RSVP, People/Groups, Giving (basic), Bulletin Generator.
+      2) Success metrics (3–5) tied to weekly operations.
+      3) 12-week roadmap with 2-week increments.
+      4) Non-goals that protect scope.
+      Constraints:
+      - Simple Mode for members: 4 buttons (Messages, Events, People, Give).
+      - Admin Mode hidden behind role.
+      - Bulletin Generator: one intake form → PDF, Slide Loop, Web/Email; weekly lock.
+      - Accessibility: large text, high contrast, 48px touch targets.
+      Output: Markdown with checklists.
+  - id: P2
+    name: System Architecture & Choices
+    depends_on: ["P1"]
+    artifacts: ["P2_architecture.md"]
+    acceptance_criteria:
+      - Diagram present (ASCII OK).
+      - SKUs chosen and cost-aware notes included.
+      - Environments and observability defined.
+    prompt: |
+      You are a pragmatic architect. Define the minimal architecture to ship V1.
+      Stack:
+      - Frontend: Next.js 14 PWA; React Native wrapper later.
+      - Backend: Node/TypeScript with tRPC + REST for public endpoints.
+      - DB: Azure Database for PostgreSQL Flexible Server.
+      - Files: Azure Blob + CDN.
+      - Jobs: Azure Functions (Timers/Queues).
+      - Realtime: Azure Web PubSub (optional for V1).
+      - Auth: Entra External ID (B2C), roles: Admin, Editor, Submitter, Viewer, Kiosk.
+      Deliverables:
+      1) High-level diagram (ASCII) with data flows.
+      2) Service list with SKU recommendations and cost-aware notes.
+      3) Env layout: dev/stage/prod, per-tenant strategy.
+      4) Observability plan: App Insights, structured logs, audit tables.
+      Output: Markdown. Keep it short and decisive.
+  - id: P3
+    name: Multi-Tenant Data Model (DDL)
+    depends_on: ["P1", "P2"]
+    artifacts: ["P3_schema.sql", "P3_seed.sql"]
+    acceptance_criteria:
+      - RLS policies present and correct.
+      - Indexes and constraints for bulletin limits (title ≤60, body ≤300).
+      - Enums/types defined for ServiceItem.type.
+    prompt: |
+      You are a database engineer. Produce PostgreSQL DDL for V1 tables with RLS.
+      Tables: Person, Household, Group, Event, RSVP, Announcement, ServiceItem, BrandPack, BulletinIssue, Contribution, Fund, Attachment, RoleAssignment, AuditLog.
+      Requirements:
+      - tenant_id on every table.
+      - RLS policy: current_setting('app.tenant_id')::uuid = tenant_id
+      - Soft delete (deleted_at) where reasonable.
+      - Indexes for common queries.
+      - Constraints for the bulletin generator: Announcement.title ≤ 60, body ≤ 300; ServiceItem.type enum; CCLI required for songs at lock.
+      Output: .sql file content plus brief seed data snippet.
+  - id: P4
+    name: Auth & Roles
+    depends_on: ["P2"]
+    artifacts: ["P4_roles.md", "P4_middleware.ts"]
+    acceptance_criteria:
+      - Role list with descriptions.
+      - Example policy JSON for ID token.
+      - Middleware snippet compiles.
+    prompt: |
+      You are an identity engineer. Define B2C flows and app roles.
+      Deliverables:
+      1) App roles: Admin, Editor, Submitter, Viewer, Kiosk with descriptions.
+      2) Login: email, phone, passkeys (optional), magic-link fallback.
+      3) Session timeouts and re-auth rules for Lock actions.
+      4) Sample policy JSON for role claims in ID token.
+      5) Backend middleware for role checks (TypeScript).
+      Output: Markdown + TypeScript snippets.
+  - id: P5
+    name: API/tRPC Surface
+    depends_on: ["P3", "P4"]
+    artifacts: ["P5_api.md", "P5_routers.ts"]
+    acceptance_criteria:
+      - Zod schemas for inputs/outputs.
+      - Error taxonomy listed.
+      - Example handler for each router compiles.
+    prompt: |
+      You are an API lead. Define V1 endpoints and tRPC routers.
+      Routers:
+      - people: search, get, upsert
+      - events: list, create, update, rsvp
+      - announcements: listActive, create, approve
+      - services: listByDate, upsertItems, enforceCCLI
+      - brandpack: getActive, setForWeek
+      - bulletin: createIssue, buildPreview, lock, reopenEmergency, artifacts
+      - giving: createContribution, listFunds, statementExport (stub)
+      - import: icsUpload, planningCenterCsv
+      Include:
+      - Input/output zod schemas.
+      - Error taxonomy (validation, forbidden, conflict, lock-state).
+      - Rate limits per tenant.
+      Output: TypeScript interface map and example handlers.
+  - id: P6
+    name: Admin UI Wireframes
+    depends_on: ["P1", "P5"]
+    artifacts: ["P6_wireframes.md"]
+    acceptance_criteria:
+      - ASCII frames for all required screens.
+      - Route map included.
+    prompt: |
+      You are a UX lead. Produce low-fi wireframes in ASCII plus a route map.
+      Screens:
+      - Dashboard (stats: attendance trend, giving, top announcements).
+      - Intake Form (Calendar/Service Plan, Announcements, Branding tabs).
+      - Bulletin Issue (timeline: Draft → Built → Locked; preview; lock).
+      - Events/RSVP manager.
+      - People/Groups list and detail.
+      - Settings: roles, email/SMS providers, brand.
+      Output: Markdown with ASCII frames and route table.
+  - id: P7
+    name: Simple Mode Mobile UI
+    depends_on: ["P1"]
+    artifacts: ["P7_mobile.md", "P7_home.tsx"]
+    acceptance_criteria:
+      - Component list and props.
+      - React Native stub compiles.
+    prompt: |
+      You are a mobile UX designer. Define Simple Mode.
+      Home: 4 buttons (Messages, Events, People, Give).
+      Patterns: large text, high contrast, big tap targets, no jargon.
+      Deliverables:
+      - Component list and props.
+      - Navigation skeleton (React Native).
+      - Accessibility notes and font scaling rules.
+      Output: concise Markdown + a minimal React Native screen stub.
+  - id: P8
+    name: Bulletin Generator Task Breakdowns
+    depends_on: ["P3", "P5", "P6"]
+    artifacts: ["P8_bulletin_issues.md"]
+    acceptance_criteria:
+      - Issue list with AC, estimates, dependencies.
+    prompt: |
+      You are a delivery lead. Break the bulletin generator into tasks.
+      Components:
+      1) Data model + validations.
+      2) Intake form (3 tabs) with live counters and image validator (≤4MB, 16:9 crop).
+      3) Template pack (single sheet, half-letter booklet) with locked layout tokens.
+      4) Render pipeline: Next.js SSR → HTML; Playwright → PDF/JPG/MP4; email HTML.
+      5) Imposition logic (half-letter 4–1, 2–3).
+      6) Locking + watermark + change log + emergency reopen.
+      7) ProPresenter export bundle and CDN publish.
+      8) Acceptance tests.
+      Output: Issue list with AC, effort labels, and dependencies.
+  - id: P9
+    name: Renderer Templates
+    depends_on: ["P8"]
+    artifacts: ["P9_templates.md", "P9_tokens.css"]
+    acceptance_criteria:
+      - All blocks present; truncation rules documented.
+      - Large-print variant documented.
+    prompt: |
+      You are a frontend printer-nerd. Produce handlebars/ejs templates for:
+      - Cover, Welcome, Order of Service, Songs (with CCLI line),
+      - Sermon Notes, Announcements grid (top 3 large, rest two-col), Mini Calendar,
+      - Giving/Prayer QR, Footer.
+      Constraints:
+      - Fixed tokens for spacing, line-clamp utilities, widow/orphan prevention.
+      - Truncation with ellipsis and optional QR link.
+      - Large-print variant at 120%.
+      Output: template files (inline in code blocks) + CSS tokens.
+  - id: P10
+    name: Playwright Render Service
+    depends_on: ["P8", "P9"]
+    artifacts: ["P10_renderer.ts"]
+    acceptance_criteria:
+      - Functions renderPdf/renderSlides/renderLoop/renderEmail exist.
+      - Blob upload and hash returned.
+    prompt: |
+      You are a platform engineer. Write a Container App service using Node/TS + Playwright.
+      Functions:
+      - renderPdf(html, brandPack, options)
+      - renderSlides(html, options) → JPGs @ 1920x1080
+      - renderLoop(jpgs, seconds=10) → MP4
+      - renderEmail(html) → inlined CSS, images to CDN
+      Include:
+      - Font embedding, CMYK-safe palette tips.
+      - Deterministic viewport; hash inputs for cache keys.
+      - Upload to Blob; return file URIs and content hashes.
+      Output: TypeScript with error handling and retries.
+  - id: P11
+    name: Locking & Audit
+    depends_on: ["P3", "P5"]
+    artifacts: ["P11_locking.ts", "P11_audit.sql"]
+    acceptance_criteria:
+      - State machine enforced server-side.
+      - Audit triggers capture who/when/what.
+    prompt: |
+      You are a backend engineer. Implement BulletinIssue state machine:
+      draft → approved → built → locked → reopen_emergency → locked
+      Rules:
+      - Only Admin can lock/reopen.
+      - Pre-lock previews watermarked PROOF.
+      - On lock, persist template + data hash; artifacts immutable.
+      - Change log entry for every mutation (who/when/what).
+      Output: TypeScript service + SQL triggers for audit.
+  - id: P12
+    name: Importers
+    depends_on: ["P5"]
+    artifacts: ["P12_ics_import.ts", "P12_pc_import.ts", "P12_mapping.json"]
+    acceptance_criteria:
+      - Idempotent behavior verified.
+      - Validation report includes line numbers.
+    prompt: |
+      You are a data engineer. Implement:
+      - ICS importer → Events.
+      - Planning Center CSV → ServiceItem/Events.
+      Requirements:
+      - Mapping config per church.
+      - Validation report with line numbers and skip reasons.
+      - Idempotent: repeated imports do not duplicate.
+      Output: Node scripts + sample mapping JSON.
+  - id: P13
+    name: Messaging & Announcements
+    depends_on: ["P5"]
+    artifacts: ["P13_comms_spec.md", "P13_digest.ts"]
+    acceptance_criteria:
+      - Auto-expire announcements.
+      - Digest sends Mondays 9am.
+    prompt: |
+      You are a comms PM. Build:
+      - Channels with admin broadcast and reply controls.
+      - Announcements feed with priority and auto-expire.
+      - Digest generator (“Your Week”) Mondays 9am.
+      Output: API + UI tasks, plus a one-page spec for the digest structure.
+  - id: P14
+    name: Giving (V1)
+    depends_on: ["P5"]
+    artifacts: ["P14_payments.md", "P14_webhooks.ts"]
+    acceptance_criteria:
+      - One-time + recurring via card/ACH.
+      - Statement CSV export exists.
+    prompt: |
+      You are a payments engineer. Implement:
+      - Funds, one-time/recurring gifts; card/ACH; Apple/Google Pay.
+      - Statements export (PDF batch) and CSV export for QuickBooks.
+      Constraints:
+      - PCI sane defaults; webhook verification.
+      - Email receipts.
+      - No full GL in V1.
+      Output: Sequence diagram + endpoint definitions + webhook code.
+  - id: P15
+    name: Accessibility & Senior QA
+    depends_on: ["P6", "P7"]
+    artifacts: ["P15_accessibility.md", "P15_tests.md"]
+    acceptance_criteria:
+      - WCAG AA checklist tailored.
+      - Manual script for two seniors.
+    prompt: |
+      You are an accessibility lead. Produce:
+      - WCAG AA checklist tailored to this app.
+      - Senior usability checklist (font sizes, hit areas, language).
+      - Automated tests (axe + Jest) and a manual test script for two volunteers (65+).
+      Output: Markdown + sample test cases.
+  - id: P16
+    name: CI/CD & IaC
+    depends_on: ["P2", "P5"]
+    artifacts: ["P16_pipelines.yml", "P16_infra.bicep"]
+    acceptance_criteria:
+      - OIDC to Azure works.
+      - Blue/green backend deploy supported.
+    prompt: |
+      You are a DevOps engineer. Provide:
+      - GitHub Actions with OIDC to Azure.
+      - Environments: dev/stage/prod; infra: Postgres, Storage, Functions, Container Apps, App Service, CDN.
+      - App settings via Key Vault; no plaintext.
+      - Blue/green for backend.
+      - Cost guardrail: daily spend report to email.
+      Output: YAML pipelines + Bicep/Terraform modules.
+  - id: P17
+    name: Test Data & Fixtures
+    depends_on: ["P3"]
+    artifacts: ["P17_seed.ts", "P17_csvs.zip"]
+    acceptance_criteria:
+      - Data volumes match spec.
+      - CCLI fields present on 3 songs.
+    prompt: |
+      You are a QA engineer. Create seed scripts:
+      - 50 people across 20 households, 6 groups, 12 events in the next 30 days.
+      - 12 announcements with categories and priorities.
+      - Service plan for next Sunday with 5 items including 3 songs with CCLI.
+      - BrandPack with logo and colors.
+      Output: SQL/TS seed code + downloadable CSVs.
+  - id: P18
+    name: Acceptance Tests (E2E)
+    depends_on: ["P6", "P8", "P9", "P10", "P11", "P14"]
+    artifacts: ["P18_playwright.spec.ts"]
+    acceptance_criteria:
+      - All listed scenarios automated and green.
+    prompt: |
+      You are a test lead. Write Playwright tests for:
+      1) Intake → Build → Lock → Artifact download; ensure watermark disappears on lock.
+      2) Announcement overflow: top 3 large, rest two-col, overflow “See website” QR.
+      3) Imposition correctness (half-letter 4–1, 2–3).
+      4) Large-print export.
+      5) Lock immutability and emergency reopen stamp.
+      6) Giving flow: donate → receipt → statement export.
+      Output: Playwright test files with fixtures.
+  - id: P19
+    name: Admin Docs & Switch-Over Sunday
+    depends_on: ["P8", "P10", "P11"]
+    artifacts: ["P19_admin_docs.md"]
+    acceptance_criteria:
+      - 2 pages, print-friendly, checklist style.
+    prompt: |
+      You are a technical writer. Produce:
+      - Switch-Over Sunday checklist.
+      - Weekly bulletin routine timeline (Tue–Fri).
+      - Troubleshooting: kiosk print, CCLI missing, asset too large.
+      - “One form or it doesn’t happen” policy note.
+      Output: 2-page Markdown; print-friendly.
+  - id: P20
+    name: Launch Lite GTM
+    depends_on: ["P1", "P19"]
+    artifacts: ["P20_gtm.md", "P20_emails.md", "P20_onepager.pdf"]
+    acceptance_criteria:
+      - ICP, offer, outreach sequence included.
+      - One-pager content ready.
+    prompt: |
+      You are a scrappy marketer. Produce:
+      - ICP: sub-200, secretary drowning in bulletin and announcements.
+      - Offer: 30-day trial; we build your first bulletin with you.
+      - Outreach: 3-email + 1-call sequence; Facebook group posts; pastor forums.
+      - Pricing page copy and one PDF one-pager.
+      Output: Markdown + email templates.
