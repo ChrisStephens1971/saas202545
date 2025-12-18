@@ -26,6 +26,8 @@ rg-vrd-202545-prd-eus2-app/
   └─ fd-vrd-202545-prd-eus2 (Front Door CDN)
 ```
 
+**Production Custom Domain:** `https://www.elderfirstchurch.com`
+
 ## Prerequisites
 
 - Azure subscription
@@ -314,13 +316,13 @@ az webapp config appsettings set \
 az webapp config hostname add \
   --webapp-name app-vrd-202545-prd-eus2-web \
   --resource-group rg-vrd-202545-prd-eus2-app \
-  --hostname www.elderfirstchurch.org
+  --hostname www.elderfirstchurch.com
 
 # Bind SSL certificate (using App Service Managed Certificate)
 az webapp config ssl create \
   --resource-group rg-vrd-202545-prd-eus2-app \
   --name app-vrd-202545-prd-eus2-web \
-  --hostname www.elderfirstchurch.org
+  --hostname www.elderfirstchurch.com
 
 az webapp config ssl bind \
   --resource-group rg-vrd-202545-prd-eus2-app \

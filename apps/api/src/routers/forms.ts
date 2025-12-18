@@ -1,7 +1,42 @@
 import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
-import { queryWithTenant } from '../db';
+import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
+
+/** Database row type for form */
+export interface FormRow {
+  id: string;
+  tenant_id: string;
+  title: string;
+  description: string | null;
+  status: 'draft' | 'active' | 'closed' | 'archived';
+  allow_multiple_submissions: boolean;
+  require_login: boolean;
+  notification_email: string | null;
+  created_by: string | null;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+  submission_count?: string;
+}
+
+/** Database row type for form field */
+export interface FormFieldRow {
+  id: string;
+  form_id: string;
+  tenant_id: string;
+  label: string;
+  field_type: string;
+  is_required: boolean;
+  placeholder: string | null;
+  help_text: string | null;
+  options: string[] | null;
+  sequence: number;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+}
 
 const formFieldSchema = z.object({
   label: z.string().min(1).max(255),
@@ -35,7 +70,7 @@ export const formsRouter = router({
         WHERE f.deleted_at IS NULL
       `;
 
-      const queryParams: any[] = [];
+      const queryParams: QueryParam[] = [];
 
       if (status) {
         queryParams.push(status);
@@ -45,7 +80,7 @@ export const formsRouter = router({
       queryText += ` GROUP BY f.id ORDER BY f.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
       queryParams.push(limit, offset);
 
-      const result = await queryWithTenant(tenantId, queryText, queryParams);
+      const result = await queryWithTenant<FormRow>(tenantId, queryText, queryParams);
 
       const countQuery = `
         SELECT COUNT(*) as total
@@ -53,7 +88,7 @@ export const formsRouter = router({
         WHERE deleted_at IS NULL
         ${status ? `AND status = $1` : ''}
       `;
-      const countResult = await queryWithTenant(
+      const countResult = await queryWithTenant<{ total: string }>(
         tenantId,
         countQuery,
         status ? [status] : []
@@ -61,7 +96,7 @@ export const formsRouter = router({
 
       return {
         forms: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 
@@ -71,7 +106,7 @@ export const formsRouter = router({
       const { id } = input;
       const tenantId = ctx.tenantId!;
 
-      const formResult = await queryWithTenant(
+      const formResult = await queryWithTenant<FormRow>(
         tenantId,
         `SELECT * FROM form WHERE id = $1 AND deleted_at IS NULL`,
         [id]
@@ -81,7 +116,7 @@ export const formsRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Form not found' });
       }
 
-      const fieldsResult = await queryWithTenant(
+      const fieldsResult = await queryWithTenant<FormFieldRow>(
         tenantId,
         `SELECT * FROM form_field WHERE form_id = $1 AND deleted_at IS NULL ORDER BY sequence`,
         [id]
@@ -144,7 +179,7 @@ export const formsRouter = router({
       const tenantId = ctx.tenantId!;
 
       const setClauses: string[] = [];
-      const values: any[] = [id];
+      const values: QueryParam[] = [id];
       let paramIndex = 2;
 
       Object.entries(updates).forEach(([key, value]) => {
@@ -243,7 +278,7 @@ export const formsRouter = router({
       const tenantId = ctx.tenantId!;
 
       const setClauses: string[] = [];
-      const values: any[] = [id];
+      const values: QueryParam[] = [id];
       let paramIndex = 2;
 
       Object.entries(field).forEach(([key, value]) => {
@@ -332,7 +367,7 @@ export const formsRouter = router({
 
       return {
         submissions: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 

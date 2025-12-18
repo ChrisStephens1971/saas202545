@@ -44,7 +44,7 @@ interface DigestData {
   };
 }
 
-interface SundayService Preview {
+interface SundayServicePreview {
   date: Date;
   time: string; // "10:00 AM"
   sermonTitle: string;

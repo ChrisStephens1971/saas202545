@@ -1,9 +1,82 @@
 import { Pool, QueryResult, QueryResultRow } from 'pg';
 import { logger } from './utils/logger';
+import { IS_PROD_LIKE } from './config/env';
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
+
+/**
+ * Type for SQL query parameters - covers all valid PostgreSQL parameter types.
+ * Using this instead of `any` provides better type safety while remaining flexible.
+ *
+ * Includes:
+ * - Primitives: string, number, boolean, null, undefined
+ * - Date objects for timestamp handling
+ * - Buffer for binary data
+ * - Arrays for PostgreSQL array types and IN clauses
+ * - Objects for JSON/JSONB columns (serialized automatically by pg driver)
+ */
+export type QueryParam =
+  | string
+  | number
+  | boolean
+  | null
+  | Date
+  | Buffer
+  | undefined
+  | string[]
+  | number[]
+  | Record<string, unknown>;
+
+/**
+ * SECURITY FIX (H8/H9): SSL Configuration
+ *
+ * SSL mode options (controlled by DATABASE_SSL environment variable):
+ * - 'false' or not set: No SSL (development only - local Docker)
+ * - 'true': SSL enabled with certificate validation (production default)
+ * - 'require-no-verify': SSL enabled but skip certificate validation
+ *   (ONLY for Azure PostgreSQL with Azure-managed certificates or testing)
+ *
+ * In production:
+ * - Use DATABASE_SSL=true with valid CA certificate
+ * - Azure Database for PostgreSQL uses Azure-managed SSL by default
+ *
+ * See: docs/SECURITY-AUDIT-2025-12-04.md (H8, H9)
+ */
+function getSslConfig(): boolean | { rejectUnauthorized: boolean } {
+  const sslMode = process.env.DATABASE_SSL;
+
+  // Development: No SSL (local Docker PostgreSQL)
+  if (sslMode !== 'true' && sslMode !== 'require-no-verify') {
+    if (IS_PROD_LIKE) {
+      logger.warn(
+        '[SECURITY] DATABASE_SSL is not enabled in production/staging. ' +
+        'This is insecure. Set DATABASE_SSL=true for production.'
+      );
+    }
+    return false;
+  }
+
+  // Production: SSL with certificate validation
+  if (sslMode === 'true') {
+    // Full SSL with certificate validation
+    // Azure PostgreSQL Flexible Server works with this setting
+    return { rejectUnauthorized: true };
+  }
+
+  // Fallback: SSL without certificate validation
+  // ONLY use for Azure-managed SSL or specific testing scenarios
+  if (sslMode === 'require-no-verify') {
+    logger.warn(
+      '[SECURITY] Using SSL without certificate validation. ' +
+      'This should only be used for Azure-managed certificates or testing.'
+    );
+    return { rejectUnauthorized: false };
+  }
+
+  return false;
+}
 
 /**
  * Database client singleton
@@ -11,7 +84,7 @@ dotenv.config();
  */
 export const db = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  ssl: getSslConfig(),
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
@@ -20,23 +93,32 @@ export const db = new Pool({
 /**
  * Set tenant context for RLS
  * Must be called before any tenant-scoped queries
+ *
+ * SECURITY: Uses parameterized set_config to prevent SQL injection.
+ * Never use string interpolation for tenant context.
  */
 export async function setTenantContext(tenantId: string): Promise<void> {
-  await db.query(`SET LOCAL app.tenant_id = '${tenantId}'`);
+  // Use set_config with parameters to safely set the tenant context
+  // The third parameter 'true' makes it LOCAL (transaction-scoped)
+  await db.query('SELECT set_config($1, $2, true)', ['app.tenant_id', tenantId]);
 }
 
 /**
  * Execute query with automatic tenant context
+ *
+ * SECURITY: Uses parameterized set_config to prevent SQL injection.
+ * Never use string interpolation for tenant context.
  */
-export async function queryWithTenant<T extends QueryResultRow = any>(
+export async function queryWithTenant<T extends QueryResultRow = QueryResultRow>(
   tenantId: string,
   queryText: string,
-  values?: any[]
+  values?: unknown[]
 ): Promise<QueryResult<T>> {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-    await client.query(`SET LOCAL app.tenant_id = '${tenantId}'`);
+    // SECURITY FIX: Use parameterized set_config instead of string interpolation
+    await client.query('SELECT set_config($1, $2, true)', ['app.tenant_id', tenantId]);
     const result = await client.query<T>(queryText, values);
     await client.query('COMMIT');
     return result;

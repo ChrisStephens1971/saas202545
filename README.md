@@ -40,7 +40,8 @@ cd apps/web && npm run dev
 - **[Quick Start Guide](docs/QUICK-START.md)** - Get running in 10 minutes
 - **[API Documentation](docs/API-DOCUMENTATION.md)** - Complete API reference
 - **[Database Schema](docs/DATABASE-SCHEMA.md)** - Database structure & RLS
-- **[Session Notes](docs/SESSION-2025-11-14.md)** - Latest development session
+- **[Dual-UI Runbook](docs/ui/DUAL-UI-RUNBOOK.md)** - UiMode architecture and dual-view pattern
+- **[P15 Accessibility](artifacts/P15_accessibility.md)** - WCAG 2.1 AA and elder-first design
 - **[Documentation Index](docs/README.md)** - All documentation
 
 ---
@@ -231,9 +232,33 @@ cd packages/database
 npm run seed
 ```
 
+### Dev Login Accounts
+
+Development uses in-memory test accounts with passwords loaded from environment variables.
+
+**Quick setup:**
+1. Create `apps/web/.env.development.local` (see [docs/DEV-ACCOUNTS.md](docs/DEV-ACCOUNTS.md))
+2. Set `ALLOW_DEV_USERS=true` and `NEXT_PUBLIC_DEV_MODE=true`
+3. Set passwords for test accounts (e.g., `DEV_ADMIN_PASSWORD=yourpassword`)
+4. Restart dev server
+
+**Validate configuration:**
+```bash
+npm run dev:check-accounts
+```
+
+**Sync accounts to database (optional):**
+```bash
+npm run dev:reset-accounts
+```
+
+**Test accounts:** admin@dev.com, editor@dev.com, submitter@dev.com, viewer@dev.com, kiosk@dev.com
+
+Full setup instructions: [docs/DEV-ACCOUNTS.md](docs/DEV-ACCOUNTS.md)
+
 ### Manual Testing
 
-1. Login at http://localhost:3045/login (any credentials)
+1. Login at http://localhost:3045/login
 2. View bulletins at http://localhost:3045/bulletins
 3. View people at http://localhost:3045/people
 4. API health: `curl http://localhost:8045/health`
@@ -278,6 +303,23 @@ git add .
 git commit -m "feat: description"
 ```
 
+### Security Tests (mandatory for auth/data changes)
+
+The platform includes a dedicated security test suite covering authentication, RBAC, CSRF protection, SQL injection prevention, RLS, and bulletin access rules.
+
+```bash
+# From repo root
+npm run test:security
+```
+
+Run this before merging any changes that touch:
+- Authentication or login flows
+- Roles/permissions
+- Database access patterns
+- Bulletin generation or access rules
+
+For full details of what this suite covers, see [docs/SECURITY-TESTS.md](./docs/SECURITY-TESTS.md).
+
 ---
 
 ## 🎨 Design Principles
@@ -303,18 +345,50 @@ git commit -m "feat: description"
 
 ## 🔒 Security
 
-### Current (Development)
+### Implemented
 - ✅ Row-Level Security (RLS) at database level
 - ✅ Parameterized queries (SQL injection prevention)
-- ✅ Soft deletes (audit trail)
-- ⚠️ Simple JWT (dev only, **NOT production ready**)
+- ✅ Rate limiting (general + auth endpoints)
+- ✅ CSRF protection (Bearer token model)
+- ✅ Security headers (Helmet)
+- ✅ Secrets scanning in CI (Gitleaks)
+- ✅ Automated security test suite (75 tests)
 
-### Required for Production
+### Security Status (as of 2025-12-06)
+
+The Elder-First Church Platform has completed a comprehensive 10-phase security audit covering:
+
+- Authentication and session handling
+- Authorization and role/tenant isolation
+- Database access and row-level security (RLS)
+- Input validation, XSS/CSRF protection, and rate limiting
+- Secrets management and configuration
+- Logging, error handling, and CI/CD security checks
+
+**Latest audit (2025-12-06):**
+
+- 0 Critical findings
+- 0 High findings
+- 2 Low findings (both remediated)
+- 1 Informational item
+
+All previously identified Critical and High issues were fixed in earlier hardening phases.
+The full audit report is available at: `docs/SECURITY-AUDIT-REPORT-2025-12-06.md`.
+Ongoing security status and maintenance items (including the next-auth 5.x beta → stable upgrade) are tracked in: `docs/SECURITY-STATUS.md`.
+
+### Security Testing
+
+Run the security test suite before any auth/data changes:
+
+```bash
+npm run test:security
+```
+
+See [docs/SECURITY-TESTS.md](./docs/SECURITY-TESTS.md) for details, or [docs/SECURITY-STATUS.md](./docs/SECURITY-STATUS.md) for full security posture.
+
+### Planned for Production
 - [ ] Azure AD B2C with OAuth 2.0
 - [ ] JWT signing with RS256
-- [ ] Rate limiting
-- [ ] CSRF protection
-- [ ] Input sanitization
 - [ ] HTTPS enforcement
 - [ ] Secrets in Azure Key Vault
 
@@ -331,7 +405,9 @@ git commit -m "feat: description"
 - **Monitor**: Application Insights
 - **AD B2C**: Authentication
 
-**Deployment guide**: Coming soon
+**Canonical environment URLs**: See [`docs/ops/ENVIRONMENT-URLS.md`](docs/ops/ENVIRONMENT-URLS.md)
+
+**Deployment guide**: See [`docs/PRODUCTION-DEPLOYMENT.md`](docs/PRODUCTION-DEPLOYMENT.md)
 
 ---
 
@@ -387,6 +463,21 @@ Use conventional commits:
 - [x] Communications & Notifications (email/SMS campaigns)
 - [x] Member Directory with privacy settings
 - [x] Prayer Requests with tracking
+
+---
+
+## 🤖 AI / MCP Tooling
+
+This repository has first-class documentation for MCP (Model Context Protocol) servers used by AI coding agents (Claude Code, Gemini CLI, etc.). MCP configuration lives **only on the developer's machine**, not in the repo.
+
+- **[MCP Servers Guide](docs/dev/MCP-SERVERS.md)** - Complete guide to GitHub, Azure, Redis, and docs MCP servers
+- **[Playwright Guardrails](docs/mcp/PLAYWRIGHT-GUARDRAILS.md)** - Rules for browser automation
+
+**Browser automation rules (in short):**
+- Use staging URLs only (never production)
+- Use low-privilege test accounts only
+- Do not delete or bulk-modify existing data
+- Any test data created by agents must be clearly marked with a `[MCP-TEST]` prefix
 
 ---
 

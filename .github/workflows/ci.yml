@@ -10,10 +10,74 @@ env:
   NODE_VERSION: '20.x'
 
 jobs:
+  # ============================================================================
+  # SECURITY FIX (Phase 3 - M3): Secrets Scanning with Gitleaks
+  # Scans code for accidentally committed secrets, API keys, tokens, etc.
+  # See: docs/SECURITY-AUDIT-2025-12-04.md (Phase 3)
+  # ============================================================================
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for scanning all commits
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # Optional: for enterprise features
+
+      - name: Upload Gitleaks report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: results.sarif
+          retention-days: 30
+
+  # ============================================================================
+  # SECURITY: Dependency vulnerability scanning
+  # ============================================================================
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: secrets-scan  # Run after secrets scan passes
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # SECURITY FIX (H11): Make audit failures block the build
+      # This ensures high/critical vulnerabilities must be addressed before merge
+      # See: docs/SECURITY-AUDIT-2025-12-04.md (H11)
+      - name: Run npm audit (high severity)
+        run: npm audit --audit-level=high
+
+      - name: Run npm audit (critical severity)
+        run: |
+          echo "Checking for critical vulnerabilities..."
+          npm audit --audit-level=critical
+
   lint-and-typecheck:
     name: Lint & TypeCheck
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: security-audit
 
     steps:
       - name: Checkout code
@@ -34,11 +98,47 @@ jobs:
       - name: Run lint
         run: npm run lint
 
+  # ============================================================================
+  # SECURITY: Run security test suite
+  # These tests verify tenant isolation, auth, SQL injection protection, etc.
+  # ============================================================================
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: lint-and-typecheck
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run API security tests
+        run: npm run test:security
+        env:
+          NODE_ENV: test
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-test-results
+          path: apps/api/coverage/
+          retention-days: 7
+
   build:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: lint-and-typecheck
+    needs: [lint-and-typecheck, security-tests]
 
     steps:
       - name: Checkout code
@@ -57,3 +157,5 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
+          # SECURITY: Don't leak secrets in build logs
+          CI: true

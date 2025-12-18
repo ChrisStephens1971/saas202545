@@ -1,7 +1,18 @@
 import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
-import { queryWithTenant } from '../db';
+import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
+
+/** Member row returned from get_directory_members database function */
+interface DirectoryMemberRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  phone: string | null;
+  membership_status: string;
+}
 
 export const directoryRouter = router({
   // ============================================================================
@@ -40,7 +51,7 @@ export const directoryRouter = router({
         ? [tenantId, `%${search.toLowerCase()}%`, limit, offset]
         : [tenantId, limit, offset];
 
-      const result = await queryWithTenant(tenantId, queryText, params);
+      const result = await queryWithTenant<DirectoryMemberRow>(tenantId, queryText, params);
 
       // Count total
       let countQuery = `
@@ -59,9 +70,19 @@ export const directoryRouter = router({
       const countParams = search ? [tenantId, `%${search.toLowerCase()}%`] : [tenantId];
       const countResult = await queryWithTenant(tenantId, countQuery, countParams);
 
+      // Explicitly map rows to ensure all fields are properly serializable
+      const members = result.rows.map((row: DirectoryMemberRow) => ({
+        id: row.id,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        membership_status: row.membership_status,
+      }));
+
       return {
-        members: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        members,
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 
@@ -179,7 +200,7 @@ export const directoryRouter = router({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Person ID required' });
       }
 
-      const { personId: _, ...updateData } = input;
+      const { personId: _personId, ...updateData } = input;
 
       // Check if settings exist
       const existing = await queryWithTenant(
@@ -191,7 +212,7 @@ export const directoryRouter = router({
       if (existing.rows.length > 0) {
         // Update existing settings
         const setClauses: string[] = [];
-        const values: any[] = [];
+        const values: QueryParam[] = [];
         let paramIndex = 1;
 
         if (updateData.showInDirectory !== undefined) {
@@ -283,7 +304,7 @@ export const directoryRouter = router({
       const tenantId = ctx.tenantId!;
 
       // Get all directory members
-      const result = await queryWithTenant(
+      const result = await queryWithTenant<DirectoryMemberRow>(
         tenantId,
         `SELECT id, first_name, last_name, email, phone, membership_status
          FROM get_directory_members($1::uuid)
@@ -296,7 +317,7 @@ export const directoryRouter = router({
       if (input.format === 'csv') {
         // Generate CSV
         const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Membership Status'];
-        const rows = members.map((m: any) => [
+        const rows = members.map((m) => [
           m.first_name,
           m.last_name,
           m.email || '',

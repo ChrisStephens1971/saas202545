@@ -1,7 +1,9 @@
 import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
-import { queryWithTenant } from '../db';
+import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
+import { buildPartialUpdate, buildWhereClause } from '../lib/queryBuilders';
 
 export const prayersRouter = router({
   // ============================================================================
@@ -33,7 +35,7 @@ export const prayersRouter = router({
         LEFT JOIN person p ON pr.person_id = p.id
         WHERE pr.deleted_at IS NULL
       `;
-      const queryParams: any[] = [];
+      const queryParams: QueryParam[] = [];
 
       if (status !== undefined) {
         queryParams.push(status);
@@ -60,26 +62,25 @@ export const prayersRouter = router({
 
       const result = await queryWithTenant(tenantId, queryText, queryParams);
 
-      const countQuery = `
-        SELECT COUNT(*) as total
-        FROM prayer_request
-        WHERE deleted_at IS NULL
-        ${status !== undefined ? `AND status = $1` : ''}
-        ${visibility !== undefined ? `AND visibility = $${status !== undefined ? 2 : 1}` : ''}
-        ${personId !== undefined ? `AND person_id = $${(status !== undefined ? 1 : 0) + (visibility !== undefined ? 1 : 0) + 1}` : ''}
-        ${isUrgent !== undefined ? `AND is_urgent = $${(status !== undefined ? 1 : 0) + (visibility !== undefined ? 1 : 0) + (personId !== undefined ? 1 : 0) + 1}` : ''}
-      `;
-      const countParams: any[] = [];
-      if (status !== undefined) countParams.push(status);
-      if (visibility !== undefined) countParams.push(visibility);
-      if (personId !== undefined) countParams.push(personId);
-      if (isUrgent !== undefined) countParams.push(isUrgent);
+      // Build count query with proper parameter indexing
+      const { whereClause: countWhere, values: countParams } = buildWhereClause(
+        { status, visibility, personId, isUrgent },
+        { baseConditions: ['deleted_at IS NULL'] }
+      );
 
+      const countQuery = `SELECT COUNT(*) as total FROM prayer_request WHERE ${countWhere}`;
       const countResult = await queryWithTenant(tenantId, countQuery, countParams);
 
+      // Transform rows to ensure all fields are properly serializable
+      // Use pgCountToNumber for safe PostgreSQL bigint -> JS number conversion
+      const requests = result.rows.map(row => ({
+        ...row,
+        prayer_count: pgCountToNumber(row.prayer_count),
+      }));
+
       return {
-        requests: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        requests,
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 
@@ -182,46 +183,25 @@ export const prayersRouter = router({
       const tenantId = ctx.tenantId!;
       const { id, ...updateData } = input;
 
-      const setClauses: string[] = [];
-      const values: any[] = [];
-      let paramIndex = 1;
-
-      if (updateData.title) {
-        setClauses.push(`title = $${paramIndex++}`);
-        values.push(updateData.title);
-      }
-      if (updateData.description) {
-        setClauses.push(`description = $${paramIndex++}`);
-        values.push(updateData.description);
-      }
-      if (updateData.status) {
-        setClauses.push(`status = $${paramIndex++}`);
-        values.push(updateData.status);
-        if (updateData.status === 'answered') {
-          setClauses.push(`answered_at = NOW()`);
-        }
-      }
-      if (updateData.visibility) {
-        setClauses.push(`visibility = $${paramIndex++}`);
-        values.push(updateData.visibility);
-      }
-      if (updateData.isUrgent !== undefined) {
-        setClauses.push(`is_urgent = $${paramIndex++}`);
-        values.push(updateData.isUrgent);
-      }
-      if (updateData.answerNote !== undefined) {
-        setClauses.push(`answer_note = $${paramIndex++}`);
-        values.push(updateData.answerNote);
+      // Build extra clauses for special cases
+      const extraClauses: string[] = [];
+      if (updateData.status === 'answered') {
+        extraClauses.push('answered_at = NOW()');
       }
 
-      if (setClauses.length === 0) {
+      const { setClause, values, nextParamIndex, hasUpdates } = buildPartialUpdate(
+        updateData,
+        { extraClauses }
+      );
+
+      if (!hasUpdates) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'No fields to update' });
       }
 
       values.push(id);
       const result = await queryWithTenant(
         tenantId,
-        `UPDATE prayer_request SET ${setClauses.join(', ')} WHERE id = $${paramIndex} AND deleted_at IS NULL RETURNING id`,
+        `UPDATE prayer_request SET ${setClause} WHERE id = $${nextParamIndex} AND deleted_at IS NULL RETURNING id`,
         values
       );
 
@@ -343,7 +323,7 @@ export const prayersRouter = router({
 
       return {
         prayers: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 
@@ -386,10 +366,10 @@ export const prayersRouter = router({
     );
 
     return {
-      active: parseInt(activeResult.rows[0].count, 10),
-      answered: parseInt(answeredResult.rows[0].count, 10),
-      urgent: parseInt(urgentResult.rows[0].count, 10),
-      total_prayers: parseInt(totalPrayersResult.rows[0].count, 10),
+      active: pgCountToNumber(activeResult.rows[0].count),
+      answered: pgCountToNumber(answeredResult.rows[0].count),
+      urgent: pgCountToNumber(urgentResult.rows[0].count),
+      total_prayers: pgCountToNumber(totalPrayersResult.rows[0].count),
     };
   }),
 });

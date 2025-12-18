@@ -1,11 +1,66 @@
 # P15: Accessibility Testing Implementation
 
-**Version:** 1.0
-**Date:** 2025-11-14
+**Version:** 1.1
+**Date:** 2025-12-06 (Updated)
 
 ---
 
-## 1. Automated Accessibility Tests
+## 0. Implemented P15/UiMode Tests (Phase 5)
+
+The following tests are **implemented and running** as part of the dual UiMode architecture:
+
+### Run All P15 Accessibility Tests
+
+```bash
+# From apps/web directory
+npm run test:accessibility
+
+# Or run individual test suites
+npm run test:p15
+```
+
+### Implemented Test Files
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `src/components/ui/__tests__/P15Compliance.test.ts` | 31 | Button/Input CSS utility compliance |
+| `src/components/layout/appshell/__tests__/AppShellModes.test.ts` | 50 | Shell mode-dependent rendering |
+| `src/__tests__/P15AccessibilityContract.test.ts` | 54 | P15 baseline requirements |
+| **Total** | **135** | All passing |
+
+### What These Tests Verify
+
+**1. Button/Input P15 Compliance (`P15Compliance.test.ts`)**
+- Both size variants (`sm`, `md`, `lg`) use mode-responsive utilities
+- `min-h-touch` used for touch target compliance
+- `text-base`, `text-sm` map to CSS variables per mode
+- No forbidden tiny classes (12px, 32px heights, etc.)
+
+**2. AppShell Modes (`AppShellModes.test.ts`)**
+- Accessible mode: wider sidebar, larger text, high-contrast borders
+- Modern mode: compact sidebar, standard density
+- Both modes use `min-h-touch` for nav items
+- Accessible mode has always-visible nav (tablet horizontal, mobile bottom tab)
+- Modern mode has hamburger menu pattern
+
+**3. P15 Contract (`P15AccessibilityContract.test.ts`)**
+- Accessible mode: 18px fonts, 48px controls, 2px borders
+- Modern mode: 16px fonts, 40px controls, 1px borders
+- Regression guards prevent values going below baselines
+- CSS variable contract documented
+
+### Coverage by UiMode
+
+| Mode | Font (body) | Font (small) | Control Height | Border |
+|------|-------------|--------------|----------------|--------|
+| `accessible` | 18px | 16px | 48px | 2px |
+| `modern` | 16px | 14px | 40px | 1px |
+
+Both modes pass P15 minimum requirements. Modern mode is denser but still compliant.
+
+---
+
+## 1. Automated Accessibility Tests (Planned)
 
 ### 1.1 Setup
 

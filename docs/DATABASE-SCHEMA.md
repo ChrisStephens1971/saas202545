@@ -99,7 +99,7 @@ CREATE TABLE household (
 
 ### `bulletin_issue`
 
-Sunday worship bulletins.
+Sunday worship bulletins. Also serves as the anchor for Sunday Planner service plans.
 
 ```sql
 CREATE TABLE bulletin_issue (
@@ -108,6 +108,7 @@ CREATE TABLE bulletin_issue (
   issue_date DATE NOT NULL,
   service_date TIMESTAMP NOT NULL,
   status VARCHAR(20) DEFAULT 'draft',
+  start_time VARCHAR(20) DEFAULT '10:00 AM',  -- Service start time for Sunday Planner
   locked_at TIMESTAMP,
   locked_by UUID REFERENCES person(id),
   approved_at TIMESTAMP,
@@ -118,6 +119,9 @@ CREATE TABLE bulletin_issue (
   UNIQUE(tenant_id, issue_date)
 );
 ```
+
+**Key Columns**:
+- `start_time`: Service start time (e.g., "10:00 AM"). Used by the Sunday Planner to compute item start times.
 
 **Status Values**: `draft`, `approved`, `built`, `locked`
 
@@ -131,26 +135,32 @@ CREATE TABLE bulletin_issue (
 
 ### `service_item`
 
-Order of worship items.
+Order of worship items. Linked to `bulletin_issue` by `service_date`.
 
 ```sql
 CREATE TABLE service_item (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES tenant(id),
-  service_date TIMESTAMP NOT NULL,
+  service_date DATE NOT NULL,
   type VARCHAR(50) NOT NULL,
   sequence INTEGER NOT NULL,
-  title VARCHAR(200) NOT NULL,
+  title VARCHAR(200),
+  content VARCHAR(500),
   ccli_number VARCHAR(20),
   scripture_ref VARCHAR(100),
   speaker VARCHAR(100),
+  duration_minutes INTEGER,
+  section VARCHAR(50),
   notes TEXT,
-  duration INTEGER,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   deleted_at TIMESTAMP
 );
 ```
+
+**Key Columns**:
+- `section`: Section ID for grouping (e.g., "worship", "message", "closing")
+- `duration_minutes`: Duration in minutes for time calculations
 
 **Type Values**: `Welcome`, `Song`, `Prayer`, `Scripture`, `Sermon`, `Offering`, `Benediction`, `Other`
 
@@ -162,6 +172,58 @@ CREATE TABLE service_item (
 **Business Rules**:
 - `ccli_number` required when `type = 'Song'`
 - Validated by database function `validate_ccli_for_lock()`
+
+---
+
+### `service_plan_template`
+
+Reusable Sunday Planner templates.
+
+```sql
+CREATE TABLE service_plan_template (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenant(id),
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  start_time VARCHAR(20) DEFAULT '10:00 AM',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  deleted_at TIMESTAMP
+);
+```
+
+**Key Columns**:
+- `start_time`: Default service start time for plans created from this template
+
+**RLS Policy**: Standard tenant isolation
+
+---
+
+### `service_plan_template_item`
+
+Items within a Sunday Planner template.
+
+```sql
+CREATE TABLE service_plan_template_item (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenant(id),
+  template_id UUID NOT NULL REFERENCES service_plan_template(id),
+  type VARCHAR(50) NOT NULL,
+  sequence INTEGER NOT NULL,
+  title VARCHAR(200),
+  content VARCHAR(500),
+  ccli_number VARCHAR(20),
+  scripture_ref VARCHAR(100),
+  duration_minutes INTEGER,
+  section VARCHAR(50),
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  deleted_at TIMESTAMP
+);
+```
+
+**RLS Policy**: Standard tenant isolation
 
 ---
 
@@ -254,6 +316,14 @@ CREATE TABLE brand_pack (
 ```
 
 **RLS Policy**: Standard tenant isolation
+
+---
+
+### Church Profile Data
+
+Organization-level settings like theology preferences are stored on the `tenant` table or in related profile tables. For theology settings (tradition, Bible translation, sensitivity level), see:
+
+- **[Theology Settings Guide](settings/THEOLOGY-SETTINGS.md)** - Canonical values, label/value mapping, and shared types
 
 ---
 
@@ -489,4 +559,4 @@ All tables have indexes on:
 
 ---
 
-**Last Updated**: November 14, 2025
+**Last Updated**: December 7, 2025

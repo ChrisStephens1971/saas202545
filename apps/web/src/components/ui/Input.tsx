@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, forwardRef } from 'react';
+import { InputHTMLAttributes, forwardRef, useId } from 'react';
 import { cn } from '@/lib/utils';
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -9,7 +9,8 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, helper, id, ...props }, ref) => {
-    const inputId = id || `input-${Math.random().toString(36).substring(7)}`;
+    const generatedId = useId();
+    const inputId = id || generatedId;
 
     return (
       <div className="w-full">
@@ -21,11 +22,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             {label}
           </label>
         )}
+        {/* Uses CSS variables via Tailwind for UiMode responsiveness */}
+        {/* See: apps/web/tailwind.config.ts, apps/web/src/styles/globals.css */}
         <input
           id={inputId}
           ref={ref}
           className={cn(
-            'w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg min-h-touch',
+            'w-full px-control-x py-control-y text-base border-2 border-gray-300 rounded-lg min-h-touch',
             'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent',
             'disabled:opacity-50 disabled:bg-gray-100',
             error && 'border-red-500 focus:ring-red-500',

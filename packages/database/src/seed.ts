@@ -18,7 +18,8 @@ async function seed() {
     console.log(`✓ Created tenant: ${tenantId}`);
 
     // Set tenant context for RLS
-    await pool.query(`SET app.tenant_id = '${tenantId}'`);
+    // SECURITY FIX (LOW-001, 2025-12-06): Use parameterized set_config instead of string interpolation
+    await pool.query('SELECT set_config($1, $2, true)', ['app.tenant_id', tenantId]);
 
     // Insert household
     const householdResult = await pool.query(`
@@ -91,14 +92,35 @@ async function seed() {
     nextSunday.setDate(nextSunday.getDate() + (7 - nextSunday.getDay()));
     nextSunday.setHours(10, 0, 0, 0); // 10 AM
 
-    await pool.query(`
-      INSERT INTO bulletin_issue (tenant_id, issue_date, status)
-      VALUES ($1, $2, 'draft')
-      ON CONFLICT (tenant_id, issue_date) DO UPDATE SET status = EXCLUDED.status
-      RETURNING id
+    // First try to find existing bulletin for this date
+    const existingBulletin = await pool.query(`
+      SELECT id FROM bulletin_issue
+      WHERE tenant_id = $1 AND issue_date = $2 AND deleted_at IS NULL
     `, [tenantId, nextSunday]);
 
+    if (existingBulletin.rows.length === 0) {
+      await pool.query(`
+        INSERT INTO bulletin_issue (tenant_id, issue_date, status)
+        VALUES ($1, $2, 'draft')
+        RETURNING id
+      `, [tenantId, nextSunday]);
+    }
+
     console.log(`✓ Created bulletin for ${nextSunday.toDateString()}`);
+
+    // Insert a soft-deleted bulletin for testing the "deleted" filter
+    const deletedBulletinDate = new Date();
+    deletedBulletinDate.setDate(deletedBulletinDate.getDate() - 14); // 2 weeks ago
+    deletedBulletinDate.setHours(10, 0, 0, 0);
+
+    // Note: CHECK constraint requires status='deleted' when deleted_at IS NOT NULL
+    await pool.query(`
+      INSERT INTO bulletin_issue (tenant_id, issue_date, status, deleted_at)
+      VALUES ($1, $2, 'deleted', NOW())
+      ON CONFLICT DO NOTHING
+    `, [tenantId, deletedBulletinDate]);
+
+    console.log(`✓ Created soft-deleted bulletin for ${deletedBulletinDate.toDateString()}`);
 
     // Insert service items
     const serviceItems = [

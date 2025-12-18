@@ -9,13 +9,16 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
-    "test": "echo \"Tests will be added in testing phase\" && exit 0",
+    "test": "turbo run test",
+    "test:security": "npm run test:security --workspace=@elder-first/api",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rm -rf node_modules",
     "db:migrate": "cd packages/database && npm run migrate",
-    "db:seed": "cd packages/database && npm run seed"
+    "db:seed": "cd packages/database && npm run seed",
+    "dev:check-accounts": "tsx apps/api/scripts/check-dev-accounts.ts",
+    "dev:reset-accounts": "npm run dev:reset-accounts --workspace=@elder-first/api"
   },
   "devDependencies": {
     "prettier": "^3.1.0",

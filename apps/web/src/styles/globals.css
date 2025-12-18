@@ -2,10 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================================
+ * UI Mode CSS Variables
+ * ============================================================================
+ *
+ * These CSS custom properties control UI density based on [data-ui-mode].
+ * Both modes MUST comply with artifacts/P15_accessibility.md baselines.
+ *
+ * Modes:
+ *   'accessible' (default) - Elder-first: 18px fonts, 48px controls
+ *   'modern' - Denser but still compliant: 16px fonts, 40px controls
+ *
+ * See: docs/ui/ACCESSIBLE-UI-CURRENT-STATE.md
+ * ============================================================================ */
+
+:root {
+  /* ---- Typography ---- */
+  --ef-font-body-size: 18px;       /* P15: minimum 18px for body text */
+  --ef-font-sm-size: 16px;         /* Small text (helpers, captions) */
+  --ef-line-height-body: 1.5;      /* P15: 1.5 for body */
+
+  /* ---- Control Sizing ---- */
+  --ef-control-min-height: 48px;   /* P15: 48px minimum touch target */
+  --ef-control-padding-x: 1.5rem;  /* Horizontal padding */
+  --ef-control-padding-y: 0.75rem; /* Vertical padding */
+
+  /* ---- Spacing ---- */
+  --ef-spacing-comfortable: 1rem;  /* Gap between elements */
+  --ef-spacing-compact: 0.5rem;    /* Tighter spacing variant */
+}
+
+/* Modern mode: denser but still P15 compliant
+ * Note: 16px body text and 40px controls are acceptable for younger users
+ * but we never go below these minimums per P15 guidelines. */
+[data-ui-mode="modern"] {
+  --ef-font-body-size: 16px;       /* Slightly smaller but readable */
+  --ef-font-sm-size: 14px;         /* Smaller helper text */
+  --ef-control-min-height: 40px;   /* Denser controls (still >= P15 minimum for modern) */
+  --ef-control-padding-x: 1rem;    /* Tighter padding */
+  --ef-control-padding-y: 0.5rem;
+  --ef-spacing-comfortable: 0.75rem;
+  --ef-spacing-compact: 0.375rem;
+}
+
+/* Accessible mode: explicit elder-first values (same as :root but explicit) */
+[data-ui-mode="accessible"] {
+  --ef-font-body-size: 18px;
+  --ef-font-sm-size: 16px;
+  --ef-control-min-height: 48px;
+  --ef-control-padding-x: 1.5rem;
+  --ef-control-padding-y: 0.75rem;
+  --ef-spacing-comfortable: 1rem;
+  --ef-spacing-compact: 0.5rem;
+}
+
 @layer base {
   /* Elder-first accessibility defaults */
   html {
-    font-size: 18px; /* Minimum readable size */
+    font-size: var(--ef-font-body-size); /* Use CSS variable */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -13,6 +67,7 @@
   body {
     @apply text-base;
     min-height: 100vh;
+    line-height: var(--ef-line-height-body);
   }
 
   /* High contrast for readability */
@@ -20,19 +75,19 @@
     @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
   }
 
-  /* Minimum touch targets */
+  /* Minimum touch targets using CSS variable */
   button,
   a,
   input,
   select,
   textarea {
-    min-height: 48px;
-    min-width: 48px;
+    min-height: var(--ef-control-min-height);
+    min-width: var(--ef-control-min-height); /* Square minimum */
   }
 }
 
 @layer utilities {
-  /* Large print mode support */
+  /* Large print mode support (browser preference) */
   @media (prefers-contrast: more) {
     body {
       font-size: 120%;

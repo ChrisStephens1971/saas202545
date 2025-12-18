@@ -1,7 +1,8 @@
 import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
-import { queryWithTenant } from '../db';
+import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
 
 interface Person {
   id: string;
@@ -18,6 +19,7 @@ interface Person {
   membership_status: string;
   planning_center_id: string | null;
   external_id: string | null;
+  envelope_number: string | null;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
@@ -56,7 +58,7 @@ export const peopleRouter = router({
         WHERE deleted_at IS NULL
       `;
 
-      const queryParams: any[] = [];
+      const queryParams: QueryParam[] = [];
 
       if (search && search.trim().length > 0) {
         queryParams.push(`%${search}%`);
@@ -107,7 +109,7 @@ export const peopleRouter = router({
           createdAt: row.created_at,
           updatedAt: row.updated_at,
         })),
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
         limit,
         offset,
       };
@@ -134,6 +136,7 @@ export const peopleRouter = router({
           membership_status,
           planning_center_id,
           external_id,
+          envelope_number,
           created_at,
           updated_at
         FROM person
@@ -165,6 +168,7 @@ export const peopleRouter = router({
         membershipStatus: row.membership_status,
         planningCenterId: row.planning_center_id,
         externalId: row.external_id,
+        envelopeNumber: row.envelope_number,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };
@@ -265,6 +269,7 @@ export const peopleRouter = router({
         householdId: z.string().uuid().optional(),
         memberSince: z.string().date().optional(),
         membershipStatus: z.enum(['member', 'attendee', 'visitor']).optional(),
+        envelopeNumber: z.string().max(50).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -296,6 +301,7 @@ export const peopleRouter = router({
             household_id = COALESCE($8, household_id),
             member_since = COALESCE($9, member_since),
             membership_status = COALESCE($10, membership_status),
+            envelope_number = COALESCE($11, envelope_number),
             updated_at = NOW()
         WHERE id = $1 AND deleted_at IS NULL
         RETURNING id
@@ -312,6 +318,7 @@ export const peopleRouter = router({
         input.householdId,
         input.memberSince,
         input.membershipStatus,
+        input.envelopeNumber,
       ]);
 
       return { success: true };

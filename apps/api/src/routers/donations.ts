@@ -1,7 +1,55 @@
 import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
-import { queryWithTenant } from '../db';
+import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber, pgDecimalToNumber } from '../lib/dbNumeric';
+
+/** Row type for tax statement summary queries */
+interface TaxStatementSummaryRow {
+  person_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  envelope_number: string | null;
+  total_amount: string | number;
+  currency: string | null;
+  donation_count: string | number;
+  latest_delivery: { method: string; deliveredAt: string } | null;
+}
+
+/** Row type for person donation detail queries */
+interface PersonDonationRow {
+  id: string;
+  amount: string | number;
+  currency: string | null;
+  donation_date: Date;
+  donation_method: string | null;
+  check_number: string | null;
+  fund_name: string | null;
+}
+
+/** Row type for tax statement delivery records */
+interface TaxStatementDeliveryRow {
+  id: string;
+  person_id: string;
+  year: number;
+  method: string;
+  destination: string | null;
+  delivered_at: Date;
+  notes: string | null;
+  created_at: Date;
+}
+
+/** Row type for CSV export queries */
+interface DonationExportRow {
+  person_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  total_amount: string | number;
+  currency: string | null;
+  donation_count: string | number;
+}
 
 export const donationsRouter = router({
   // ============================================================================
@@ -30,7 +78,7 @@ export const donationsRouter = router({
         WHERE dc.deleted_at IS NULL
       `;
 
-      const queryParams: any[] = [];
+      const queryParams: QueryParam[] = [];
 
       if (isActive !== undefined) {
         queryParams.push(isActive);
@@ -56,7 +104,7 @@ export const donationsRouter = router({
 
       return {
         campaigns: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 
@@ -138,7 +186,7 @@ export const donationsRouter = router({
       const tenantId = ctx.tenantId!;
 
       const setClauses: string[] = [];
-      const values: any[] = [id];
+      const values: QueryParam[] = [id];
       let paramIndex = 2;
 
       Object.entries(updates).forEach(([key, value]) => {
@@ -225,7 +273,7 @@ export const donationsRouter = router({
         WHERE d.deleted_at IS NULL
       `;
 
-      const queryParams: any[] = [];
+      const queryParams: QueryParam[] = [];
 
       if (personId) {
         queryParams.push(personId);
@@ -263,7 +311,7 @@ export const donationsRouter = router({
         FROM donation
         WHERE deleted_at IS NULL
       `;
-      const countParams: any[] = [];
+      const countParams: QueryParam[] = [];
       let countParamIndex = 1;
 
       if (personId) {
@@ -291,7 +339,7 @@ export const donationsRouter = router({
 
       return {
         donations: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 
@@ -388,7 +436,7 @@ export const donationsRouter = router({
       const tenantId = ctx.tenantId!;
 
       const setClauses: string[] = [];
-      const values: any[] = [id];
+      const values: QueryParam[] = [id];
       let paramIndex = 2;
 
       Object.entries(updates).forEach(([key, value]) => {
@@ -500,5 +548,380 @@ export const donationsRouter = router({
       );
 
       return result.rows;
+    }),
+
+  // ============================================================================
+  // TAX STATEMENTS
+  // ============================================================================
+
+  // Get tax summary for a specific person and year
+  getTaxSummaryByPerson: protectedProcedure
+    .input(
+      z.object({
+        personId: z.string().uuid(),
+        year: z.number().int().min(2000).max(2100),
+        includeFundBreakdown: z.boolean().default(true),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const tenantId = ctx.tenantId!;
+
+      const result = await queryWithTenant(
+        tenantId,
+        `SELECT * FROM get_tax_summary_by_person($1::uuid, $2::uuid, $3, $4)`,
+        [tenantId, input.personId, input.year, input.includeFundBreakdown]
+      );
+
+      if (result.rows.length === 0 || result.rows[0].total_amount === null) {
+        return {
+          personId: input.personId,
+          year: input.year,
+          totalAmount: 0,
+          currency: 'USD',
+          fundBreakdown: [],
+        };
+      }
+
+      const row = result.rows[0];
+      return {
+        personId: row.person_id,
+        year: row.year,
+        totalAmount: parseFloat(row.total_amount || 0),
+        currency: row.currency || 'USD',
+        fundBreakdown: row.fund_breakdown || [],
+      };
+    }),
+
+  // Get tax summaries for all givers in a year
+  getTaxSummariesForYear: protectedProcedure
+    .input(
+      z.object({
+        year: z.number().int().min(2000).max(2100),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const tenantId = ctx.tenantId!;
+
+      // Get tax summaries with optional latest delivery info
+      const result = await queryWithTenant<TaxStatementSummaryRow>(
+        tenantId,
+        `SELECT
+           p.id as person_id,
+           p.first_name,
+           p.last_name,
+           p.email,
+           p.envelope_number,
+           COALESCE(SUM(d.amount), 0) as total_amount,
+           'USD' as currency,
+           COUNT(d.id) as donation_count,
+           (
+             SELECT json_build_object(
+               'method', tsd.method,
+               'deliveredAt', tsd.delivered_at
+             )
+             FROM tax_statement_delivery tsd
+             WHERE tsd.person_id = p.id
+               AND tsd.year = $2
+             ORDER BY tsd.delivered_at DESC
+             LIMIT 1
+           ) as latest_delivery
+         FROM person p
+         LEFT JOIN donation d ON d.person_id = p.id
+           AND d.status = 'completed'
+           AND d.deleted_at IS NULL
+           AND d.is_tax_deductible = true
+           AND EXTRACT(YEAR FROM d.donation_date) = $2
+         WHERE p.deleted_at IS NULL
+         GROUP BY p.id, p.first_name, p.last_name, p.email, p.envelope_number
+         HAVING COUNT(d.id) > 0
+         ORDER BY p.last_name, p.first_name`,
+        [tenantId, input.year]
+      );
+
+      // Calculate grand total for all summaries
+      const grandTotal = result.rows.reduce((acc, row) =>
+        acc + (parseFloat(String(row.total_amount)) || 0), 0
+      );
+
+      return {
+        summaries: result.rows.map((row) => ({
+          personId: row.person_id,
+          firstName: row.first_name,
+          lastName: row.last_name,
+          email: row.email,
+          envelopeNumber: row.envelope_number,
+          totalAmount: pgDecimalToNumber(row.total_amount),
+          currency: row.currency || 'USD',
+          donationCount: pgCountToNumber(row.donation_count),
+          latestDelivery: row.latest_delivery ? {
+            method: row.latest_delivery.method,
+            deliveredAt: row.latest_delivery.deliveredAt,
+          } : null,
+        })),
+        year: input.year,
+        totalAmount: grandTotal,
+      };
+    }),
+
+  // Get tax statement for a person (with donation details)
+  getTaxStatementForPerson: protectedProcedure
+    .input(
+      z.object({
+        personId: z.string().uuid(),
+        year: z.number().int().min(2000).max(2100),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const tenantId = ctx.tenantId!;
+
+      // Get person info
+      const personResult = await queryWithTenant(
+        tenantId,
+        `SELECT id, first_name, last_name, email, address, city, state, postal_code, envelope_number
+         FROM person
+         WHERE id = $1 AND deleted_at IS NULL`,
+        [input.personId]
+      );
+
+      if (personResult.rows.length === 0) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Person not found' });
+      }
+
+      const person = personResult.rows[0];
+
+      // Get tax summary
+      const summaryResult = await queryWithTenant(
+        tenantId,
+        `SELECT * FROM get_tax_summary_by_person($1::uuid, $2::uuid, $3, true)`,
+        [tenantId, input.personId, input.year]
+      );
+
+      // Get individual donations for the year
+      const donationsResult = await queryWithTenant<PersonDonationRow>(
+        tenantId,
+        `SELECT
+           d.id,
+           d.amount,
+           d.currency,
+           d.donation_date,
+           d.donation_method,
+           d.check_number,
+           f.name as fund_name
+         FROM donation d
+         LEFT JOIN fund f ON d.fund_id = f.id
+         WHERE d.person_id = $1
+           AND d.is_tax_deductible = true
+           AND d.status = 'completed'
+           AND d.deleted_at IS NULL
+           AND EXTRACT(YEAR FROM d.donation_date) = $2
+         ORDER BY d.donation_date`,
+        [input.personId, input.year]
+      );
+
+      const summary = summaryResult.rows[0] || { total_amount: 0, fund_breakdown: [] };
+
+      // Get org branding for tax statement header
+      const brandResult = await queryWithTenant(
+        tenantId,
+        `SELECT church_name, legal_name, address, city, state, postal_code, phone, email, ein, logo_url, tax_statement_footer
+         FROM brand_pack
+         WHERE is_active = true
+         LIMIT 1`,
+        []
+      );
+
+      const brand = brandResult.rows[0] || {};
+
+      return {
+        person: {
+          id: person.id,
+          firstName: person.first_name,
+          lastName: person.last_name,
+          email: person.email,
+          address: person.address,
+          city: person.city,
+          state: person.state,
+          postalCode: person.postal_code,
+          envelopeNumber: person.envelope_number,
+        },
+        fullName: `${person.first_name || ''} ${person.last_name || ''}`.trim(),
+        email: person.email,
+        envelopeNumber: person.envelope_number,
+        year: input.year,
+        totalAmount: parseFloat(summary.total_amount || 0),
+        currency: summary.currency || 'USD',
+        fundBreakdown: summary.fund_breakdown || [],
+        donationCount: donationsResult.rows.length,
+        orgBranding: {
+          churchName: brand.church_name || '',
+          legalName: brand.legal_name || brand.church_name || '',
+          address: brand.address || '',
+          addressLine1: brand.address || '',
+          addressLine2: '',
+          city: brand.city || '',
+          state: brand.state || '',
+          postalCode: brand.postal_code || '',
+          country: 'USA',
+          phone: brand.phone || '',
+          email: brand.email || '',
+          ein: brand.ein || '',
+          logoUrl: brand.logo_url || null,
+          taxStatementFooter: brand.tax_statement_footer || 'No goods or services were provided in exchange for these contributions.',
+        },
+        donations: donationsResult.rows.map((row) => ({
+          id: row.id,
+          amount: parseFloat(String(row.amount)) || 0,
+          currency: row.currency || 'USD',
+          date: row.donation_date,
+          method: row.donation_method,
+          checkNumber: row.check_number,
+          fundName: row.fund_name,
+        })),
+      };
+    }),
+
+  // Get delivery history for a person's tax statements
+  getTaxStatementDeliveryHistory: protectedProcedure
+    .input(
+      z.object({
+        personId: z.string().uuid(),
+        year: z.number().int().min(2000).max(2100).optional(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const tenantId = ctx.tenantId!;
+
+      let queryText = `
+        SELECT
+          tsd.id,
+          tsd.person_id,
+          tsd.year,
+          tsd.method,
+          tsd.destination,
+          tsd.delivered_at,
+          tsd.notes,
+          tsd.created_at
+        FROM tax_statement_delivery tsd
+        WHERE tsd.tenant_id = $1 AND tsd.person_id = $2
+      `;
+
+      const params: (string | number)[] = [tenantId, input.personId];
+
+      if (input.year) {
+        queryText += ` AND tsd.year = $3`;
+        params.push(input.year);
+      }
+
+      queryText += ` ORDER BY tsd.delivered_at DESC`;
+
+      const result = await queryWithTenant<TaxStatementDeliveryRow>(tenantId, queryText, params);
+
+      // Return array directly (frontend expects this)
+      return result.rows.map((row) => ({
+        id: row.id,
+        personId: row.person_id,
+        year: row.year,
+        method: row.method,
+        destination: row.destination,
+        deliveredAt: row.delivered_at,
+        notes: row.notes,
+        createdAt: row.created_at,
+      }));
+    }),
+
+  // Log a tax statement delivery
+  logTaxStatementDelivery: protectedProcedure
+    .input(
+      z.object({
+        personId: z.string().uuid(),
+        year: z.number().int().min(2000).max(2100),
+        method: z.enum(['printed', 'emailed', 'other']),
+        destination: z.string().max(255).optional(),
+        notes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const tenantId = ctx.tenantId!;
+      const userId = ctx.userId;
+
+      const result = await queryWithTenant(
+        tenantId,
+        `INSERT INTO tax_statement_delivery (
+          tenant_id, person_id, year, method, destination, created_by, notes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *`,
+        [
+          tenantId,
+          input.personId,
+          input.year,
+          input.method,
+          input.destination || null,
+          userId || null,
+          input.notes || null,
+        ]
+      );
+
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        personId: row.person_id,
+        year: row.year,
+        method: row.method,
+        destination: row.destination,
+        deliveredAt: row.delivered_at,
+        notes: row.notes,
+        createdAt: row.created_at,
+      };
+    }),
+
+  // Export tax summaries as CSV (returns CSV string)
+  exportTaxSummariesCsv: protectedProcedure
+    .input(
+      z.object({
+        year: z.number().int().min(2000).max(2100),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const tenantId = ctx.tenantId!;
+
+      const result = await queryWithTenant<DonationExportRow>(
+        tenantId,
+        `SELECT * FROM get_tax_summaries_for_year($1::uuid, $2)`,
+        [tenantId, input.year]
+      );
+
+      // Build CSV content
+      const headers = ['Person ID', 'First Name', 'Last Name', 'Email', 'Total Amount', 'Currency', 'Donation Count'];
+      const rows = result.rows.map((row) => [
+        row.person_id,
+        row.first_name || '',
+        row.last_name || '',
+        row.email || '',
+        parseFloat(String(row.total_amount)) || 0,
+        row.currency || 'USD',
+        row.donation_count,
+      ]);
+
+      // Escape CSV fields
+      const escapeField = (field: unknown): string => {
+        const str = String(field);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map((row) => row.map(escapeField).join(',')),
+      ].join('\n');
+
+      return {
+        csv: csvContent,
+        filename: `tax-summaries-${input.year}.csv`,
+        year: input.year,
+        recordCount: result.rows.length,
+        generatedAt: new Date().toISOString(),
+      };
     }),
 });
