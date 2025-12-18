@@ -179,7 +179,8 @@ export const directoryRouter = router({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Person ID required' });
       }
 
-      const { personId: _, ...updateData } = input;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { personId: _personId, ...updateData } = input;
 
       // Check if settings exist
       const existing = await queryWithTenant(
