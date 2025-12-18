@@ -5,7 +5,7 @@ import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Sparkles, Plus, Loader2, AlertCircle, BookOpen, FileText, Lightbulb, Music, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { Sparkles, Plus, Loader2, AlertCircle, BookOpen, FileText, Lightbulb, Music, ShieldAlert, AlertTriangle, MessageSquareQuote } from 'lucide-react';
 import type { SermonElement, SermonHelperSuggestions } from '@elder-first/types';
 
 interface SermonHelperAISuggestionsProps {
@@ -93,6 +93,16 @@ export function SermonHelperAISuggestions({
         text: item.text || '',
       });
     }
+  };
+
+  // Add illustration suggestion as an illustration note element
+  const addIllustration = (title: string, summary: string) => {
+    onAddToOutline({
+      id: generateId(),
+      type: 'illustration',
+      title,
+      note: summary,
+    });
   };
 
   const isLoading = getAISuggestions.isPending;
@@ -311,6 +321,53 @@ export function SermonHelperAISuggestions({
                 </div>
                 <p className="text-xs text-gray-500 mt-3">
                   Application ideas are for reference. Add them as notes to your outline if helpful.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Illustration Suggestions */}
+          {suggestions.illustrationSuggestions && suggestions.illustrationSuggestions.length > 0 && (
+            <Card variant="outlined">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MessageSquareQuote size={18} className="text-orange-600" />
+                  Illustration Suggestions
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {suggestions.illustrationSuggestions!.map((illustration) => (
+                    <div
+                      key={illustration.id}
+                      className="flex items-start justify-between gap-3 p-3 bg-orange-50 rounded-lg"
+                      data-testid="illustration-suggestion-item"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-orange-800">{illustration.title}</span>
+                          {illustration.forSection && (
+                            <span className="text-xs font-medium px-2 py-0.5 bg-orange-200 text-orange-700 rounded-full">
+                              for: {illustration.forSection}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">{illustration.summary}</div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addIllustration(illustration.title, illustration.summary)}
+                        className="flex-shrink-0 gap-1"
+                        data-testid="add-illustration-button"
+                      >
+                        <Plus size={14} /> Add
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-3">
+                  Click &quot;Add&quot; to insert an illustration note into your sermon outline.
                 </p>
               </CardContent>
             </Card>

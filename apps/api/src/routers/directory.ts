@@ -2,6 +2,7 @@ import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
 import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
 
 /** Member row returned from get_directory_members database function */
 interface DirectoryMemberRow {
@@ -50,7 +51,7 @@ export const directoryRouter = router({
         ? [tenantId, `%${search.toLowerCase()}%`, limit, offset]
         : [tenantId, limit, offset];
 
-      const result = await queryWithTenant(tenantId, queryText, params);
+      const result = await queryWithTenant<DirectoryMemberRow>(tenantId, queryText, params);
 
       // Count total
       let countQuery = `
@@ -69,9 +70,19 @@ export const directoryRouter = router({
       const countParams = search ? [tenantId, `%${search.toLowerCase()}%`] : [tenantId];
       const countResult = await queryWithTenant(tenantId, countQuery, countParams);
 
+      // Explicitly map rows to ensure all fields are properly serializable
+      const members = result.rows.map((row: DirectoryMemberRow) => ({
+        id: row.id,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        membership_status: row.membership_status,
+      }));
+
       return {
-        members: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        members,
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 

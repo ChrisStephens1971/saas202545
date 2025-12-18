@@ -2,6 +2,7 @@ import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
 import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber, pgDecimalToNumber } from '../lib/dbNumeric';
 
 /** Row type for tax statement summary queries */
 interface TaxStatementSummaryRow {
@@ -103,7 +104,7 @@ export const donationsRouter = router({
 
       return {
         campaigns: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 
@@ -338,7 +339,7 @@ export const donationsRouter = router({
 
       return {
         donations: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 
@@ -649,9 +650,9 @@ export const donationsRouter = router({
           lastName: row.last_name,
           email: row.email,
           envelopeNumber: row.envelope_number,
-          totalAmount: parseFloat(String(row.total_amount)) || 0,
+          totalAmount: pgDecimalToNumber(row.total_amount),
           currency: row.currency || 'USD',
-          donationCount: parseInt(String(row.donation_count), 10) || 0,
+          donationCount: pgCountToNumber(row.donation_count),
           latestDelivery: row.latest_delivery ? {
             method: row.latest_delivery.method,
             deliveredAt: row.latest_delivery.deliveredAt,

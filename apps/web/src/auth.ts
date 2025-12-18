@@ -4,13 +4,17 @@ import AzureADB2CProvider from 'next-auth/providers/azure-ad-b2c';
 import crypto from 'crypto';
 import { IS_DEV as IS_DEV_ENV, NODE_ENV } from './config/env';
 
-// Extend session types to include userId and role
+// UI mode for dual-UI architecture (see docs/ui/ACCESSIBLE-UI-CURRENT-STATE.md)
+type UiMode = 'modern' | 'accessible';
+
+// Extend session types to include userId, role, and uiMode
 declare module 'next-auth' {
   interface Session extends DefaultSession {
     user: {
       id: string;
       role: 'admin' | 'editor' | 'submitter' | 'viewer' | 'kiosk';
       tenantId?: string;
+      uiMode: UiMode;
     } & DefaultSession['user'];
   }
 
@@ -18,6 +22,7 @@ declare module 'next-auth' {
     id: string;
     role: 'admin' | 'editor' | 'submitter' | 'viewer' | 'kiosk';
     tenantId?: string;
+    uiMode: UiMode;
   }
 }
 
@@ -150,6 +155,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 role: 'admin' as const,
                 password: getDevPassword('DEV_ADMIN_PASSWORD', 'admin'),
                 tenantId: DEV_TENANT_ID,
+                uiMode: 'accessible' as UiMode, // Default to accessible
               },
               {
                 id: 'dev-editor-1',
@@ -158,6 +164,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 role: 'editor' as const,
                 password: getDevPassword('DEV_EDITOR_PASSWORD', 'editor'),
                 tenantId: DEV_TENANT_ID,
+                uiMode: 'accessible' as UiMode,
               },
               {
                 id: 'dev-submitter-1',
@@ -166,6 +173,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 role: 'submitter' as const,
                 password: getDevPassword('DEV_SUBMITTER_PASSWORD', 'submitter'),
                 tenantId: DEV_TENANT_ID,
+                uiMode: 'accessible' as UiMode,
               },
               {
                 id: 'dev-viewer-1',
@@ -174,6 +182,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 role: 'viewer' as const,
                 password: getDevPassword('DEV_VIEWER_PASSWORD', 'viewer'),
                 tenantId: DEV_TENANT_ID,
+                uiMode: 'accessible' as UiMode,
               },
               {
                 id: 'dev-kiosk-1',
@@ -182,6 +191,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 role: 'kiosk' as const,
                 password: getDevPassword('DEV_KIOSK_PASSWORD', 'kiosk'),
                 tenantId: DEV_TENANT_ID,
+                uiMode: 'accessible' as UiMode,
               },
               // FIRST PASTOR TEST USER
               // Maps to "First Test Church" seeded tenant (tenantId: '00000000-0000-0000-0000-000000000001')
@@ -192,6 +202,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 role: 'admin' as const,
                 password: getDevPassword('DEV_PASTOR_PASSWORD', 'pastor'),
                 tenantId: '00000000-0000-0000-0000-000000000001', // Fixed UUID for 'firsttest' tenant
+                uiMode: 'accessible' as UiMode,
               },
             ];
 
@@ -210,6 +221,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 name: user.name,
                 role: user.role,
                 tenantId: user.tenantId,
+                uiMode: user.uiMode,
               };
             }
 
@@ -232,6 +244,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.userId = user.id;
         token.role = user.role;
         token.tenantId = user.tenantId;
+        token.uiMode = user.uiMode;
       }
 
       // Azure AD B2C token
@@ -242,6 +255,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = 'viewer';
         // TODO: Map tenant from Azure AD B2C or database
         token.tenantId = 'default-tenant';
+        // Default uiMode for B2C users - accessible per elder-first design
+        token.uiMode = 'accessible';
       }
 
       return token;
@@ -251,6 +266,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.userId as string;
         session.user.role = token.role as 'admin' | 'editor' | 'submitter' | 'viewer' | 'kiosk';
         session.user.tenantId = token.tenantId as string;
+        session.user.uiMode = (token.uiMode as UiMode) || 'accessible';
       }
       return session;
     },

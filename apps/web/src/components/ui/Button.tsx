@@ -17,10 +17,12 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       danger: 'bg-red-600 text-white hover:bg-red-700',
     };
 
+    // Sizes use CSS variables via Tailwind for UiMode responsiveness
+    // See: apps/web/tailwind.config.ts, apps/web/src/styles/globals.css
     const sizes = {
-      sm: 'text-base px-4 py-2 min-h-[40px]',
-      md: 'text-lg px-6 py-3 min-h-touch', // 48px minimum
-      lg: 'text-xl px-8 py-4 min-h-[56px]',
+      sm: 'text-sm px-control-x py-control-y min-h-touch', // Responds to [data-ui-mode]
+      md: 'text-base px-control-x py-control-y min-h-touch', // Responds to [data-ui-mode]
+      lg: 'text-lg px-8 py-4 min-h-[56px]',
     };
 
     return (

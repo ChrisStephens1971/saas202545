@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { trpc } from '@/lib/trpc/client';
 import { BookTemplate, ChevronDown, ChevronUp, Check, Loader2, Search } from 'lucide-react';
 import type { SermonTemplateListItem, SermonTemplate } from '@elder-first/types';
+import { SermonStyleProfileLabels } from '@elder-first/types';
 
 interface TemplateSelectorProps {
   onSelect: (template: SermonTemplate | null) => void;
@@ -56,13 +57,15 @@ export function TemplateSelector({ onSelect, selectedTemplateId }: TemplateSelec
     }
   }, [templateError]);
 
-  // Filter templates by search term
+  // Filter templates by search term (also searches style profile)
   const filteredTemplates = templates.filter((t: SermonTemplateListItem) => {
     const search = searchTerm.toLowerCase();
+    const styleLabel = t.styleProfile ? SermonStyleProfileLabels[t.styleProfile].toLowerCase() : '';
     return (
       t.name.toLowerCase().includes(search) ||
       t.defaultTitle.toLowerCase().includes(search) ||
-      t.tags.some((tag) => tag.toLowerCase().includes(search))
+      t.tags.some((tag) => tag.toLowerCase().includes(search)) ||
+      styleLabel.includes(search)
     );
   });
 
@@ -162,10 +165,15 @@ export function TemplateSelector({ onSelect, selectedTemplateId }: TemplateSelec
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-gray-900 truncate">
                             {template.name}
                           </span>
+                          {template.styleProfile && (
+                            <span className="px-1.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded">
+                              {SermonStyleProfileLabels[template.styleProfile]}
+                            </span>
+                          )}
                           {isLoadingThisTemplate && (
                             <Loader2 size={14} className="animate-spin text-purple-600" />
                           )}

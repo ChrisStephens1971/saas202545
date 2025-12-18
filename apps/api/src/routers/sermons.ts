@@ -7,6 +7,7 @@ import {
   SermonPathStageSchema,
   SermonStatusSchema,
 } from '@elder-first/types';
+import { pgCountToNumber } from '../lib/dbNumeric';
 
 export interface SermonSeries {
   id: string;
@@ -99,7 +100,7 @@ export const sermonsRouter = router({
 
       return {
         series: dataResult.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 
@@ -305,7 +306,7 @@ export const sermonsRouter = router({
 
       return {
         sermons: dataResult.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 

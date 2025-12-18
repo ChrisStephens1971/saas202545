@@ -3,6 +3,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { trpc } from '@/lib/trpc/client';
 import { Save, AlertCircle, CheckCircle, Loader2, X, BookTemplate } from 'lucide-react';
+import {
+  SermonStyleProfileLabels,
+  SermonStyleProfileDescriptions,
+  type SermonStyleProfile,
+} from '@elder-first/types';
 
 interface SaveAsTemplateModalProps {
   isOpen: boolean;
@@ -28,24 +33,38 @@ export function SaveAsTemplateModal({
   const [templateName, setTemplateName] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [styleProfile, setStyleProfile] = useState<SermonStyleProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const successTemplateIdRef = useRef<string | null>(null);
 
   const createTemplateMutation = trpc.sermonHelper.createTemplateFromPlan.useMutation({
     onSuccess: (data) => {
+      successTemplateIdRef.current = data.id;
       setSuccess(true);
       setError(null);
-      setTimeout(() => {
-        onSuccess?.(data.id);
-        onClose();
-      }, 1500);
     },
     onError: (err) => {
       setError(err.message || 'Failed to create template');
       setSuccess(false);
     },
   });
+
+  // Auto-close modal after success (1.5s delay)
+  useEffect(() => {
+    if (!success) return;
+
+    const timerId = setTimeout(() => {
+      const templateId = successTemplateIdRef.current;
+      if (templateId) {
+        onSuccess?.(templateId);
+      }
+      onClose();
+    }, 1500);
+
+    return () => clearTimeout(timerId);
+  }, [success, onSuccess, onClose]);
 
   // Focus input when modal opens
   useEffect(() => {
@@ -64,6 +83,7 @@ export function SaveAsTemplateModal({
       setTemplateName('');
       setTags([]);
       setTagInput('');
+      setStyleProfile(null);
       setError(null);
       setSuccess(false);
     }
@@ -85,6 +105,7 @@ export function SaveAsTemplateModal({
       sermonId,
       name: templateName.trim(),
       tags,
+      styleProfile: styleProfile || undefined,
     });
   };
 
@@ -240,6 +261,32 @@ export function SaveAsTemplateModal({
                   <p className="text-xs text-gray-500 mt-1">
                     {tags.length}/10 tags. Press Enter or comma to add.
                   </p>
+                </div>
+
+                {/* Style Profile */}
+                <div>
+                  <label htmlFor="styleProfile" className="block text-sm font-medium text-gray-700 mb-1">
+                    Sermon Style (optional)
+                  </label>
+                  <select
+                    id="styleProfile"
+                    value={styleProfile || ''}
+                    onChange={(e) => setStyleProfile(e.target.value as SermonStyleProfile || null)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                    disabled={isSaving}
+                  >
+                    <option value="">Not set</option>
+                    {(Object.keys(SermonStyleProfileLabels) as SermonStyleProfile[]).map((profile) => (
+                      <option key={profile} value={profile}>
+                        {SermonStyleProfileLabels[profile]}
+                      </option>
+                    ))}
+                  </select>
+                  {styleProfile && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {SermonStyleProfileDescriptions[styleProfile]}
+                    </p>
+                  )}
                 </div>
 
                 {/* Info */}

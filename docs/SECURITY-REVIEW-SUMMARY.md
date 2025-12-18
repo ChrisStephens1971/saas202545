@@ -4,7 +4,7 @@
 **Review Date:** 2025-12-02
 **Reviewer:** Claude Code Security Audit
 **Scope:** Full codebase security review
-**Last Updated:** 2025-12-02 (Fixes Implemented)
+**Last Updated:** 2025-12-06 (Follow-Up Audit Complete)
 
 ---
 
@@ -15,6 +15,8 @@ This security review identified **8 critical/high severity issues** and **6 medi
 **UPDATE:** All Critical, High, and Medium severity issues have been resolved. See resolution notes below.
 
 **Phase 3 Summary:** For the complete Phase 3 hardening summary (tests, CI tooling, key rotation, platform admin ops), see [SECURITY-PHASE-3-SUMMARY.md](./SECURITY-PHASE-3-SUMMARY.md).
+
+**Security Test Suite:** Run `npm run test:security` to verify security controls. See [SECURITY-TESTS.md](SECURITY-TESTS.md) for details.
 
 ### Risk Distribution
 
@@ -467,6 +469,23 @@ The following items are documented for future implementation:
 - CodeQL workflow added (`.github/workflows/codeql.yml`)
 - Secret scanning should be enabled in GitHub repo settings
 - See `docs/CI-SECURITY-SETUP.md` for full documentation
+
+---
+
+## Follow-Up Audit (2025-12-06)
+
+A follow-up security audit confirmed the strong security posture:
+
+- **0 Critical** findings
+- **0 High** findings
+- **2 Low** findings (addressed)
+- **1 Informational** item
+
+**LOW-001 (Fixed):** Database package tenant context now uses parameterized queries. See `packages/database/src/index.ts` and `seed.ts`.
+
+**LOW-002 (Tracked):** next-auth 5.x beta tracked as maintenance item. Upgrade when stable version is available.
+
+See [SECURITY-AUDIT-REPORT-2025-12-06.md](SECURITY-AUDIT-REPORT-2025-12-06.md) for full details.
 
 ---
 

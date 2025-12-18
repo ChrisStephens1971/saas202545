@@ -1,6 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 import { getEffectiveBlockType } from '@elder-first/types';
-import type { SermonOutlinePoint, SermonBlockType } from '@elder-first/types';
+import type { SermonOutlinePoint, SermonBlockType, SermonPlan, SermonElement } from '@elder-first/types';
+import { buildPreachModeBlocks } from '@/lib/sermonPlanRenderer';
 
 /**
  * Logic tests for PreachMode behavior
@@ -332,5 +333,194 @@ describe('PreachMode Navigation Logic', () => {
     const canGoNext = currentIndex < blocksLength - 1;
 
     expect(canGoNext).toBe(true);
+  });
+});
+
+/**
+ * Phase 9: Tests for SermonPlan-based block construction
+ * These tests verify that buildPreachModeBlocks correctly handles SermonPlan data.
+ */
+describe('PreachMode SermonPlan Block Construction', () => {
+  // Helper to create minimal sermon object
+  const createSermon = (overrides?: Record<string, unknown>) => ({
+    title: 'Test Sermon',
+    primary_scripture: 'John 3:16',
+    ...overrides,
+  });
+
+  // Helper to create SermonPlan
+  const createPlan = (elements: SermonElement[], overrides?: Partial<SermonPlan>): SermonPlan => ({
+    id: 'plan-1',
+    sermonId: 'sermon-1',
+    title: 'Test Plan',
+    bigIdea: 'Test big idea',
+    primaryText: 'John 3:16',
+    supportingTexts: [],
+    elements,
+    tags: [],
+    notes: undefined,
+    styleProfile: undefined,
+    ...overrides,
+  });
+
+  describe('with SermonPlan elements', () => {
+    it('builds header, element blocks, and conclusion from SermonPlan', () => {
+      const plan = createPlan([
+        { id: 'e1', type: 'point', text: 'First Point' } as SermonElement,
+        { id: 'e2', type: 'scripture', reference: 'Romans 8:28' } as SermonElement,
+      ]);
+
+      const blocks = buildPreachModeBlocks(createSermon(), plan);
+
+      expect(blocks.length).toBe(4); // header + 2 elements + conclusion
+      expect(blocks[0].type).toBe('header');
+      expect(blocks[1].type).toBe('element');
+      expect(blocks[2].type).toBe('element');
+      expect(blocks[3].type).toBe('conclusion');
+    });
+
+    it('includes all SermonElement types as element blocks', () => {
+      const plan = createPlan([
+        { id: 'e1', type: 'section', title: 'Introduction' } as SermonElement,
+        { id: 'e2', type: 'point', text: 'Main Point' } as SermonElement,
+        { id: 'e3', type: 'scripture', reference: 'Psalm 23:1' } as SermonElement,
+        { id: 'e4', type: 'illustration', title: 'Story' } as SermonElement,
+        { id: 'e5', type: 'hymn', title: 'Amazing Grace' } as SermonElement,
+        { id: 'e6', type: 'note', text: 'Remember to pause' } as SermonElement,
+      ]);
+
+      const blocks = buildPreachModeBlocks(createSermon(), plan);
+      const elementBlocks = blocks.filter((b) => b.type === 'element');
+
+      expect(elementBlocks.length).toBe(6);
+      expect((elementBlocks[0] as any).element.type).toBe('section');
+      expect((elementBlocks[1] as any).element.type).toBe('point');
+      expect((elementBlocks[2] as any).element.type).toBe('scripture');
+      expect((elementBlocks[3] as any).element.type).toBe('illustration');
+      expect((elementBlocks[4] as any).element.type).toBe('hymn');
+      expect((elementBlocks[5] as any).element.type).toBe('note');
+    });
+
+    it('preserves element order from SermonPlan', () => {
+      const plan = createPlan([
+        { id: 'e1', type: 'scripture', reference: 'Gen 1:1' } as SermonElement,
+        { id: 'e2', type: 'point', text: 'Creation' } as SermonElement,
+        { id: 'e3', type: 'illustration', title: 'Big Bang' } as SermonElement,
+      ]);
+
+      const blocks = buildPreachModeBlocks(createSermon(), plan);
+      const elementBlocks = blocks.filter((b) => b.type === 'element');
+
+      expect((elementBlocks[0] as any).element.id).toBe('e1');
+      expect((elementBlocks[1] as any).element.id).toBe('e2');
+      expect((elementBlocks[2] as any).element.id).toBe('e3');
+    });
+
+    it('uses SermonPlan bigIdea in header if available', () => {
+      const plan = createPlan(
+        [{ id: 'e1', type: 'point', text: 'Point 1' } as SermonElement],
+        { bigIdea: 'God is love' }
+      );
+
+      const blocks = buildPreachModeBlocks(createSermon(), plan);
+      const header = blocks.find((b) => b.type === 'header');
+
+      expect((header?.content as any).bigIdea).toBe('God is love');
+    });
+
+    it('uses plan primaryText for scripture in header', () => {
+      const plan = createPlan(
+        [{ id: 'e1', type: 'point', text: 'Point 1' } as SermonElement],
+        { primaryText: 'Romans 8:28' }
+      );
+
+      const blocks = buildPreachModeBlocks(createSermon(), plan);
+      const header = blocks.find((b) => b.type === 'header');
+
+      expect((header?.content as any).scripture).toBe('Romans 8:28');
+    });
+  });
+
+  describe('SermonPlan priority over legacy', () => {
+    it('uses SermonPlan when both SermonPlan and mainPoints exist', () => {
+      const sermon = createSermon({
+        outline: {
+          mainPoints: [
+            { label: 'Legacy Point 1' },
+            { label: 'Legacy Point 2' },
+          ],
+        },
+      });
+      const plan = createPlan([
+        { id: 'e1', type: 'point', text: 'Plan Point 1' } as SermonElement,
+      ]);
+
+      const blocks = buildPreachModeBlocks(sermon, plan);
+
+      // Should have header + 1 element + conclusion (from plan)
+      // Not header + 2 points + conclusion (from legacy)
+      expect(blocks.length).toBe(3);
+      expect(blocks[1].type).toBe('element');
+      expect((blocks[1] as any).element.text).toBe('Plan Point 1');
+    });
+  });
+
+  describe('fallback when no SermonPlan', () => {
+    it('returns fallback when plan is null', () => {
+      const sermon = createSermon({ outline: null });
+      const blocks = buildPreachModeBlocks(sermon, null);
+
+      expect(blocks.length).toBe(1);
+      expect(blocks[0].type).toBe('fallback');
+    });
+
+    it('returns fallback when plan has empty elements', () => {
+      const plan = createPlan([]);
+      const sermon = createSermon({ outline: null });
+      const blocks = buildPreachModeBlocks(sermon, plan);
+
+      expect(blocks.length).toBe(1);
+      expect(blocks[0].type).toBe('fallback');
+    });
+
+    it('fallback includes sermon title and scripture', () => {
+      const sermon = createSermon({
+        title: 'My Sermon',
+        primary_scripture: 'John 3:16',
+        manuscript: 'Full text...',
+      });
+      const blocks = buildPreachModeBlocks(sermon, null);
+
+      expect(blocks[0].type).toBe('fallback');
+      expect((blocks[0] as any).content.title).toBe('My Sermon');
+      expect((blocks[0] as any).content.scripture).toBe('John 3:16');
+      expect((blocks[0] as any).content.manuscript).toBe('Full text...');
+    });
+  });
+
+  describe('conclusion block content', () => {
+    it('includes notes from SermonPlan in conclusion', () => {
+      const plan = createPlan(
+        [{ id: 'e1', type: 'point', text: 'Point' } as SermonElement],
+        { notes: 'Final thoughts and application' }
+      );
+
+      const blocks = buildPreachModeBlocks(createSermon(), plan);
+      const conclusion = blocks.find((b) => b.type === 'conclusion');
+
+      expect((conclusion?.content as any).notes).toBe('Final thoughts and application');
+    });
+
+    it('conclusion has undefined notes when plan.notes is undefined', () => {
+      const plan = createPlan(
+        [{ id: 'e1', type: 'point', text: 'Point' } as SermonElement],
+        { notes: undefined }
+      );
+
+      const blocks = buildPreachModeBlocks(createSermon(), plan);
+      const conclusion = blocks.find((b) => b.type === 'conclusion');
+
+      expect((conclusion?.content as any).notes).toBeUndefined();
+    });
   });
 });

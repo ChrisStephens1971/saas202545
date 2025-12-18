@@ -5,22 +5,105 @@ import { trpc } from '@/lib/trpc/client';
 import { Loader2, ArrowLeft, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { getEffectiveBlockType, getBlockDefaults } from '@elder-first/types';
-import type { SermonOutlinePoint, SermonBlockType } from '@elder-first/types';
+import type { SermonOutlinePoint, SermonBlockType, SermonPlan } from '@elder-first/types';
+import {
+  PRINT_STYLES,
+  filterPrintableElements,
+  getElementDisplayText,
+  getElementNote,
+  getPointNumberInSection,
+} from '@/lib/sermonPlanRenderer';
+
+/**
+ * Phase 9: Render SermonPlan elements for print view.
+ * Uses PRINT_STYLES from sermonPlanRenderer for consistent styling.
+ */
+function SermonPlanPrintContent({ plan }: { plan: SermonPlan }) {
+  const elements = filterPrintableElements(plan.elements);
+
+  if (elements.length === 0) {
+    return (
+      <p className="text-gray-500 text-center py-8">
+        No printable content in sermon plan.
+      </p>
+    );
+  }
+
+  return (
+    <ol className="space-y-6">
+      {elements.map((element, index) => {
+        const style = PRINT_STYLES[element.type];
+        const displayText = getElementDisplayText(element);
+        const note = getElementNote(element);
+        const isSection = element.type === 'section';
+        const isPoint = element.type === 'point';
+
+        // Get point number within the current section
+        const pointNumber = isPoint ? getPointNumberInSection(elements, index) : null;
+
+        return (
+          <li key={element.id} className={style.containerClass}>
+            {/* Block Label (for labeled element types) */}
+            {style.showLabel && style.labelText && (
+              <span className="text-xs uppercase tracking-wider text-gray-500 block mb-1">
+                {style.labelText}
+              </span>
+            )}
+
+            {/* Section header rendering */}
+            {isSection ? (
+              <h2 className={style.labelClass}>{displayText}</h2>
+            ) : (
+              /* Other elements with optional numbering */
+              <div className={`${style.labelClass} flex items-start gap-3`}>
+                {isPoint && pointNumber && (
+                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center font-bold text-sm print:bg-gray-200 print:text-gray-700">
+                    {pointNumber}
+                  </span>
+                )}
+                <div className="flex-1">
+                  <p className={isPoint ? 'text-lg' : ''}>{displayText}</p>
+
+                  {/* Note/additional content */}
+                  {note && (
+                    <div className="mt-3 p-3 bg-gray-50 rounded text-sm text-gray-600 print:border print:border-gray-200">
+                      <p className="whitespace-pre-wrap">{note}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 /**
  * Print-friendly sermon outline page.
  * Renders a clean, print-optimized view of the sermon outline.
  * Only includes blocks where includeInPrint !== false.
+ * Phase 9: Now also supports SermonPlan as data source.
  */
 export default function SermonPrintPage() {
   const params = useParams();
   const router = useRouter();
   const sermonId = params.id as string;
 
-  const { data: sermon, isLoading, error } = trpc.sermons.get.useQuery(
+  // Fetch sermon data
+  const { data: sermon, isLoading: isSermonLoading, error: sermonError } = trpc.sermons.get.useQuery(
     { id: sermonId },
     { enabled: !!sermonId }
   );
+
+  // Phase 9: Also fetch SermonPlan for structured print view
+  const { data: plan, isLoading: isPlanLoading } = trpc.sermonHelper.getPlan.useQuery(
+    { sermonId },
+    { enabled: !!sermonId }
+  );
+
+  const isLoading = isSermonLoading || isPlanLoading;
 
   if (isLoading) {
     return (
@@ -30,7 +113,7 @@ export default function SermonPrintPage() {
     );
   }
 
-  if (error || !sermon) {
+  if (sermonError || !sermon) {
     return (
       <div className="flex h-screen items-center justify-center flex-col gap-4">
         <p className="text-red-500">Error loading sermon</p>
@@ -43,6 +126,9 @@ export default function SermonPrintPage() {
 
   const outline = sermon.outline as any;
   const mainPoints: SermonOutlinePoint[] = outline?.mainPoints || [];
+
+  // Phase 9: Determine data source - SermonPlan takes priority
+  const hasSermonPlan = plan && plan.elements && plan.elements.length > 0;
 
   // Filter blocks to only include those marked for print
   const printableBlocks = mainPoints.filter((point) => {
@@ -133,117 +219,154 @@ export default function SermonPrintPage() {
             )}
           </div>
 
-          {/* Big Idea */}
-          {outline?.bigIdea && (
+          {/* Big Idea - Phase 9: Use SermonPlan bigIdea if available */}
+          {(hasSermonPlan ? plan.bigIdea : outline?.bigIdea) && (
             <div className="mt-4 p-4 bg-blue-50 rounded-lg print:bg-gray-100">
               <p className="font-semibold text-sm text-blue-800 print:text-gray-800 mb-1">
                 Big Idea:
               </p>
-              <p className="text-blue-900 print:text-gray-900">{outline.bigIdea}</p>
+              <p className="text-blue-900 print:text-gray-900">
+                {hasSermonPlan ? plan.bigIdea : outline.bigIdea}
+              </p>
+            </div>
+          )}
+
+          {/* Phase 9: Show supporting texts from SermonPlan */}
+          {hasSermonPlan && plan.supportingTexts && plan.supportingTexts.length > 0 && (
+            <div className="mt-2 text-sm text-gray-600">
+              <span className="font-medium">Supporting Texts:</span>{' '}
+              {plan.supportingTexts.join(', ')}
             </div>
           )}
         </header>
 
         {/* Main Content */}
         <main className="space-y-6">
-          {printableBlocks.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
-              No printable content in outline.
-            </p>
+          {/* Phase 9: Render SermonPlan elements if available */}
+          {hasSermonPlan ? (
+            <SermonPlanPrintContent plan={plan} />
           ) : (
-            <ol className="space-y-6">
-              {printableBlocks.map((point, index) => {
-                const effectiveType = getEffectiveBlockType(point.type);
-                const styleClass = getBlockPrintStyle(effectiveType);
-                const label = getBlockLabel(effectiveType);
-                const isPoint = effectiveType === 'POINT';
+            // Legacy rendering for mainPoints
+            <>
+              {printableBlocks.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">
+                  No printable content in outline.
+                </p>
+              ) : (
+                <ol className="space-y-6">
+                  {printableBlocks.map((point, index) => {
+                    const effectiveType = getEffectiveBlockType(point.type);
+                    const styleClass = getBlockPrintStyle(effectiveType);
+                    const label = getBlockLabel(effectiveType);
+                    const isPoint = effectiveType === 'POINT';
 
-                // Count only POINT types for numbering
-                const pointNumber = isPoint
-                  ? printableBlocks
-                      .slice(0, index + 1)
-                      .filter((p) => getEffectiveBlockType(p.type) === 'POINT').length
-                  : null;
+                    // Count only POINT types for numbering
+                    const pointNumber = isPoint
+                      ? printableBlocks
+                          .slice(0, index + 1)
+                          .filter((p) => getEffectiveBlockType(p.type) === 'POINT').length
+                      : null;
 
-                return (
-                  <li key={index} className={`${effectiveType === 'NOTE' ? 'ml-4' : ''}`}>
-                    {/* Block Label (for non-POINT types) */}
-                    {label && (
-                      <span className="text-xs uppercase tracking-wider text-gray-500 block mb-1">
-                        {label}
-                      </span>
-                    )}
-
-                    {/* Main Label/Title */}
-                    <div className={`${styleClass} flex items-start gap-3`}>
-                      {isPoint && pointNumber && (
-                        <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center font-bold text-sm print:bg-gray-200 print:text-gray-700">
-                          {pointNumber}
-                        </span>
-                      )}
-                      <div className="flex-1">
-                        <p className={isPoint ? 'text-lg' : ''}>{point.label}</p>
-
-                        {/* Scripture Reference */}
-                        {point.scriptureRef && (
-                          <p className="text-sm text-gray-600 mt-1 font-mono">
-                            📖 {point.scriptureRef}
-                          </p>
+                    return (
+                      <li key={index} className={`${effectiveType === 'NOTE' ? 'ml-4' : ''}`}>
+                        {/* Block Label (for non-POINT types) */}
+                        {label && (
+                          <span className="text-xs uppercase tracking-wider text-gray-500 block mb-1">
+                            {label}
+                          </span>
                         )}
 
-                        {/* Summary */}
-                        {point.summary && (
-                          <p className={`mt-2 ${effectiveType === 'SCRIPTURE' ? 'italic' : ''} text-gray-700`}>
-                            {point.summary}
-                          </p>
-                        )}
+                        {/* Main Label/Title */}
+                        <div className={`${styleClass} flex items-start gap-3`}>
+                          {isPoint && pointNumber && (
+                            <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center font-bold text-sm print:bg-gray-200 print:text-gray-700">
+                              {pointNumber}
+                            </span>
+                          )}
+                          <div className="flex-1">
+                            <p className={isPoint ? 'text-lg' : ''}>{point.label}</p>
 
-                        {/* Notes */}
-                        {point.notes && (
-                          <div className="mt-3 p-3 bg-gray-50 rounded text-sm text-gray-600 print:border print:border-gray-200">
-                            <p className="whitespace-pre-wrap">{point.notes}</p>
+                            {/* Scripture Reference */}
+                            {point.scriptureRef && (
+                              <p className="text-sm text-gray-600 mt-1 font-mono">
+                                📖 {point.scriptureRef}
+                              </p>
+                            )}
+
+                            {/* Summary */}
+                            {point.summary && (
+                              <p className={`mt-2 ${effectiveType === 'SCRIPTURE' ? 'italic' : ''} text-gray-700`}>
+                                {point.summary}
+                              </p>
+                            )}
+
+                            {/* Notes */}
+                            {point.notes && (
+                              <div className="mt-3 p-3 bg-gray-50 rounded text-sm text-gray-600 print:border print:border-gray-200">
+                                <p className="whitespace-pre-wrap">{point.notes}</p>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </>
           )}
         </main>
 
-        {/* Footer Section */}
-        {(outline?.application || outline?.callToAction) && (
-          <footer className="mt-8 pt-6 border-t-2 border-gray-200 space-y-4">
-            {outline.application && (
-              <div>
-                <h3 className="font-semibold text-gray-800 mb-2">Application</h3>
-                <p className="text-gray-700">{outline.application}</p>
-              </div>
-            )}
-
-            {outline.callToAction && (
-              <div className="p-4 bg-green-50 rounded-lg print:bg-gray-100 print:border print:border-gray-200">
-                <h3 className="font-semibold text-green-800 print:text-gray-800 mb-2">
-                  Call to Action
+        {/* Footer Section - Phase 9: Use SermonPlan notes or legacy footer */}
+        {hasSermonPlan ? (
+          // SermonPlan notes footer
+          plan.notes && (
+            <footer className="mt-8 pt-6 border-t-2 border-gray-200">
+              <div className="p-4 bg-yellow-50 rounded-lg text-sm print:bg-gray-50 print:border">
+                <h3 className="font-semibold text-yellow-800 print:text-gray-800 mb-2">
+                  Notes
                 </h3>
-                <p className="text-green-900 print:text-gray-900">{outline.callToAction}</p>
+                <p className="text-yellow-900 print:text-gray-900 whitespace-pre-wrap">
+                  {plan.notes}
+                </p>
+              </div>
+            </footer>
+          )
+        ) : (
+          // Legacy footer
+          <>
+            {(outline?.application || outline?.callToAction) && (
+              <footer className="mt-8 pt-6 border-t-2 border-gray-200 space-y-4">
+                {outline.application && (
+                  <div>
+                    <h3 className="font-semibold text-gray-800 mb-2">Application</h3>
+                    <p className="text-gray-700">{outline.application}</p>
+                  </div>
+                )}
+
+                {outline.callToAction && (
+                  <div className="p-4 bg-green-50 rounded-lg print:bg-gray-100 print:border print:border-gray-200">
+                    <h3 className="font-semibold text-green-800 print:text-gray-800 mb-2">
+                      Call to Action
+                    </h3>
+                    <p className="text-green-900 print:text-gray-900">{outline.callToAction}</p>
+                  </div>
+                )}
+              </footer>
+            )}
+
+            {/* Extra Notes */}
+            {outline?.extraNotes && (
+              <div className="mt-6 p-4 bg-yellow-50 rounded-lg text-sm print:bg-gray-50 print:border">
+                <h3 className="font-semibold text-yellow-800 print:text-gray-800 mb-2">
+                  Notes
+                </h3>
+                <p className="text-yellow-900 print:text-gray-900 whitespace-pre-wrap">
+                  {outline.extraNotes}
+                </p>
               </div>
             )}
-          </footer>
-        )}
-
-        {/* Extra Notes */}
-        {outline?.extraNotes && (
-          <div className="mt-6 p-4 bg-yellow-50 rounded-lg text-sm print:bg-gray-50 print:border">
-            <h3 className="font-semibold text-yellow-800 print:text-gray-800 mb-2">
-              Notes
-            </h3>
-            <p className="text-yellow-900 print:text-gray-900 whitespace-pre-wrap">
-              {outline.extraNotes}
-            </p>
-          </div>
+          </>
         )}
 
         {/* Print Footer */}

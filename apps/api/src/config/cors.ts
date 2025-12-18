@@ -19,12 +19,19 @@ import { logCorsViolation } from '../logging/securityLogger';
 
 /**
  * Default allowed origins for development (localhost only).
+ *
+ * IMPORTANT: Keep in sync with the ports defined in:
+ * - apps/web/package.json (dev script port)
+ * - apps/api/package.json (dev script port)
+ * - docs/api/DEV-CORS-NOTES.md
  */
 const DEFAULT_DEV_ORIGINS = [
   'http://localhost:3045',
   'http://127.0.0.1:3045',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
+  'http://localhost:3500', // Dev web app port (commonly used)
+  'http://127.0.0.1:3500',
 ];
 
 /**
@@ -144,6 +151,7 @@ export const corsOptions: CorsOptions = {
     'Authorization',
     'X-Requested-With',
     'X-Tenant-Slug',
+    'X-Tenant-Id',
     'X-CSRF-Token',
   ],
   exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],

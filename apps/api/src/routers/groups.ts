@@ -2,6 +2,7 @@ import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
 import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
 
 // Unused interfaces - can be added back when needed for type safety
 // interface Group { ... }
@@ -66,7 +67,7 @@ export const groupsRouter = router({
 
       return {
         groups: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 

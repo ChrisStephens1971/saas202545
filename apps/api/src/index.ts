@@ -11,7 +11,7 @@ import { createContext } from './context';
 import { logger } from './utils/logger';
 import { checkDatabaseHealth } from './db';
 import { validateEncryptionConfig } from './utils/encryption';
-import { IS_PROD } from './config/env';
+import { IS_PROD, IS_DEV } from './config/env';
 import { corsOptions, logCorsConfig } from './config/cors';
 import { csrfProtection, logCsrfConfig } from './security/csrf';
 
@@ -24,18 +24,30 @@ const PORT = process.env.PORT || 8045;
 const isProduction = IS_PROD;
 
 /**
- * SECURITY FIX (C4): Rate Limiting Configuration
+ * SECURITY FIX (C4): Environment-Aware Rate Limiting
  *
- * Configurable via environment variables:
+ * In development: Higher limits to avoid blocking normal dev workflows
+ * In production: Strict limits to prevent abuse
+ *
+ * Dev limits: 1000 requests per minute (plenty for testing)
+ * Prod limits: 100 requests per 15 minutes (configurable via env vars)
+ *
+ * Configurable via environment variables (production only):
  * - RATE_LIMIT_WINDOW_MS: Time window in milliseconds (default: 15 minutes)
  * - RATE_LIMIT_MAX_REQUESTS: Max requests per window for general endpoints (default: 100)
  * - AUTH_RATE_LIMIT_MAX_REQUESTS: Max requests per window for auth endpoints (default: 10)
  *
  * See: docs/SECURITY-AUDIT-2025-12-04.md (C4)
  */
-const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10); // 15 minutes
-const rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10);
-const authRateLimitMaxRequests = parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS || '10', 10);
+const rateLimitWindowMs = IS_DEV
+  ? 60000 // 1 minute window in dev
+  : parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10); // 15 minutes in prod
+const rateLimitMaxRequests = IS_DEV
+  ? 1000 // 1000 requests per minute in dev
+  : parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10);
+const authRateLimitMaxRequests = IS_DEV
+  ? 100 // 100 auth attempts per minute in dev
+  : parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS || '10', 10);
 
 // General rate limiter for all endpoints
 const generalLimiter = rateLimit({
@@ -43,6 +55,13 @@ const generalLimiter = rateLimit({
   max: rateLimitMaxRequests,
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // Skip rate limiting for tRPC routes in development to avoid dev workflow issues
+  skip: (req) => {
+    if (IS_DEV && req.path.startsWith('/trpc')) {
+      return true;
+    }
+    return false;
+  },
   message: {
     error: 'Too many requests, please try again later.',
     code: 'RATE_LIMIT_EXCEEDED',
@@ -53,7 +72,21 @@ const generalLimiter = rateLimit({
       path: req.path,
       userAgent: req.get('User-Agent'),
     });
-    res.status(429).json(options.message);
+    // For tRPC routes, return a tRPC-compatible error format
+    if (req.path.startsWith('/trpc')) {
+      res.status(429).json({
+        error: {
+          message: 'Rate limit exceeded. Please try again later.',
+          code: -32029, // Custom tRPC error code for rate limiting
+          data: {
+            code: 'TOO_MANY_REQUESTS',
+            httpStatus: 429,
+          },
+        },
+      });
+    } else {
+      res.status(429).json(options.message);
+    }
   },
 });
 
@@ -63,6 +96,8 @@ const authLimiter = rateLimit({
   max: authRateLimitMaxRequests,
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip auth rate limiting in development
+  skip: () => IS_DEV,
   message: {
     error: 'Too many authentication attempts, please try again later.',
     code: 'AUTH_RATE_LIMIT_EXCEEDED',
@@ -73,7 +108,21 @@ const authLimiter = rateLimit({
       path: req.path,
       userAgent: req.get('User-Agent'),
     });
-    res.status(429).json(options.message);
+    // Return tRPC-compatible error format for /trpc routes
+    if (req.path.startsWith('/trpc')) {
+      res.status(429).json({
+        error: {
+          message: 'Too many authentication attempts. Please try again later.',
+          code: -32029,
+          data: {
+            code: 'TOO_MANY_REQUESTS',
+            httpStatus: 429,
+          },
+        },
+      });
+    } else {
+      res.status(429).json(options.message);
+    }
   },
 });
 
@@ -227,6 +276,15 @@ async function start() {
 
   // SECURITY FIX (Phase 3 - M2): Log CSRF configuration
   logCsrfConfig();
+
+  // SECURITY FIX (C4): Log rate limit configuration
+  logger.info('Rate limiting configuration', {
+    environment: IS_DEV ? 'development' : 'production',
+    windowMs: rateLimitWindowMs,
+    maxRequests: rateLimitMaxRequests,
+    authMaxRequests: authRateLimitMaxRequests,
+    trpcSkipped: IS_DEV, // tRPC routes skip rate limiting in dev
+  });
 
   // Check database connection
   const dbHealthy = await checkDatabaseHealth();

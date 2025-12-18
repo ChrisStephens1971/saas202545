@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { queryWithTenant } from '../db';
 import { TRPCError } from '@trpc/server';
 import { logger } from '../utils/logger';
+import { pgCountToNumber, pgDecimalToNumber } from '../lib/dbNumeric';
 
 // ============================================================================
 // Types
@@ -420,7 +421,7 @@ export const preachRouter = router({
            WHERE service_date = $1 AND deleted_at IS NULL`,
           [bulletinResult.rows[0].issue_date]
         );
-        totalPlannedMinutes = parseInt(plannedResult.rows[0]?.total_minutes || '0', 10);
+        totalPlannedMinutes = pgCountToNumber(plannedResult.rows[0]?.total_minutes);
       }
 
       return {
@@ -429,9 +430,9 @@ export const preachRouter = router({
           startedAt: session.started_at,
           endedAt: session.ended_at,
           createdByUserId: session.created_by_user_id,
-          totalItems: parseInt(session.total_items, 10),
+          totalItems: pgCountToNumber(session.total_items),
           totalActualSeconds: session.total_actual_seconds
-            ? parseInt(session.total_actual_seconds, 10)
+            ? pgDecimalToNumber(session.total_actual_seconds)
             : null,
           sessionDurationSeconds: session.ended_at && session.started_at
             ? Math.round((session.ended_at.getTime() - session.started_at.getTime()) / 1000)

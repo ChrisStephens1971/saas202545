@@ -10,10 +10,19 @@ export default function PreachPage() {
     const router = useRouter();
     const sermonId = params.id as string;
 
-    const { data: sermon, isLoading, error } = trpc.sermons.get.useQuery(
+    // Fetch sermon data
+    const { data: sermon, isLoading: isSermonLoading, error: sermonError } = trpc.sermons.get.useQuery(
         { id: sermonId },
         { enabled: !!sermonId }
     );
+
+    // Phase 9: Also fetch SermonPlan for structured navigation
+    const { data: plan, isLoading: isPlanLoading } = trpc.sermonHelper.getPlan.useQuery(
+        { sermonId },
+        { enabled: !!sermonId }
+    );
+
+    const isLoading = isSermonLoading || isPlanLoading;
 
     if (isLoading) {
         return (
@@ -23,7 +32,7 @@ export default function PreachPage() {
         );
     }
 
-    if (error || !sermon) {
+    if (sermonError || !sermon) {
         return (
             <div className="flex h-screen items-center justify-center flex-col gap-4">
                 <p className="text-red-500">Error loading sermon</p>
@@ -37,6 +46,7 @@ export default function PreachPage() {
     return (
         <PreachMode
             sermon={sermon}
+            plan={plan}
             onExit={() => router.push(`/sermons/${sermonId}`)}
         />
     );

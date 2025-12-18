@@ -224,3 +224,141 @@ The SermonBuilder component (`apps/web/src/components/sermons/SermonBuilder.tsx`
 - Production environments will never make OpenAI API calls
 - Only admin users can view/update AI settings
 - The full API key is never returned to the client (only `keyLast4`)
+
+## Troubleshooting
+
+### "Failed to fetch" Error When Saving Settings
+
+**Symptom:** Clicking Save on the AI Settings page shows "Failed to fetch" error toast.
+
+**Root Causes (fixed in Dec 2025):**
+
+1. **CORS header mismatch** - The `X-Tenant-Id` header was not in the CORS `allowedHeaders` list, causing preflight requests to fail.
+
+2. **Stale auth token** - The tRPC client was capturing stale closure values for the auth token and tenant ID in its `headers()` function.
+
+**Fix applied:**
+- Added `X-Tenant-Id` to `apps/api/src/config/cors.ts` allowedHeaders
+- Updated `apps/web/src/lib/trpc/Provider.tsx` to use refs for dynamic header values
+
+**Verification:**
+```bash
+# Test CORS preflight
+curl -X OPTIONS "http://localhost:8045/trpc/aiSettings.update" \
+  -H "Origin: http://localhost:3045" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: Content-Type,Authorization,X-Tenant-Id" \
+  -v
+
+# Should return 200 with Access-Control-Allow-Headers including X-Tenant-Id
+```
+
+### API Key Not Persisting
+
+**Symptom:** API key appears to save but is gone on page refresh.
+
+**Check:**
+1. Verify `APP_ENCRYPTION_KEY` is set in the API environment
+2. Check the `ai_settings` table: `SELECT * FROM ai_settings;`
+3. Look for errors in API logs related to encryption
+
+### AI Features Disabled Despite Configuration
+
+**Symptom:** AI buttons show disabled even after configuring API key.
+
+**Check:**
+1. Verify `DEPLOY_ENV` is not set to `production`
+2. Check the `trpc.ai.aiConfig` response in browser DevTools Network tab
+3. Ensure the `enabled` flag is `true` in the database
+
+### UNAUTHORIZED Error on AI Settings Page
+
+**Symptom:** Browser DevTools Console shows `TRPCClientError: UNAUTHORIZED` when loading `/settings/ai`.
+
+**Root Cause:** JWT secret mismatch between web app and API server.
+
+The web app signs JWT tokens using `NEXTAUTH_SECRET`, and the API server verifies them using the same secret. If these values don't match, token verification fails and you get UNAUTHORIZED.
+
+**Check:**
+```bash
+# Compare secrets (they MUST be identical)
+grep NEXTAUTH_SECRET apps/web/.env.local
+grep NEXTAUTH_SECRET apps/api/.env
+```
+
+**Fix:**
+Ensure both files have the **exact same** `NEXTAUTH_SECRET` value:
+```bash
+# apps/web/.env.local
+NEXTAUTH_SECRET=local-dev-secret-for-jwt-signing-must-be-32-chars-or-more
+
+# apps/api/.env
+NEXTAUTH_SECRET=local-dev-secret-for-jwt-signing-must-be-32-chars-or-more
+```
+
+After updating, restart both servers:
+```bash
+npx kill-port 8045 3045
+npm run dev
+```
+
+**Note:** The secret must be at least 32 characters. In production, use a cryptographically random secret stored in Azure Key Vault.
+
+### Access Denied / Insufficient Permissions
+
+**Symptom:** "Insufficient permissions" or "FORBIDDEN" error on AI settings.
+
+**Cause:** AI Settings is admin-only. Only users with the `admin` role can access this page.
+
+**Check:**
+1. Verify you're logged in as an admin user (e.g., `admin@dev.com`)
+2. Check the session in browser DevTools: Application → Cookies → look for session token
+3. Verify the dev account has admin role configured
+
+**Dev account roles:**
+| Email | Role |
+|-------|------|
+| admin@dev.com | Admin |
+| editor@dev.com | Editor |
+| viewer@dev.com | Viewer |
+
+Only `admin@dev.com` can access AI Settings.
+
+### 429 Too Many Requests
+
+**Symptom:** Browser DevTools Network tab shows `429 Too Many Requests` when saving AI settings or making other API calls.
+
+**Root Cause:** Rate limiting is applied to all tRPC endpoints. In local development with older versions, the limit was 100 requests per 15 minutes per IP address, which could be exhausted during normal development browsing.
+
+**Fix Applied (Dec 2025):** Environment-aware rate limiting:
+
+| Environment | Window | Max Requests | Auth Max |
+|-------------|--------|--------------|----------|
+| Development | 1 minute | 1000 | 100 |
+| Production | 15 minutes | 100 | 10 |
+
+**If you still hit rate limits in development:**
+
+1. Check that `NODE_ENV=development` in `apps/api/.env`
+2. Restart the API server after changing environment variables
+3. Wait 1 minute for the rate limit window to reset
+
+**Production rate limits:**
+
+In production, rate limits can be configured via environment variables:
+- `RATE_LIMIT_WINDOW_MS` - Time window in ms (default: 900000 = 15 min)
+- `RATE_LIMIT_MAX_REQUESTS` - Max requests per window (default: 100)
+- `AUTH_RATE_LIMIT_MAX_REQUESTS` - Max auth attempts per window (default: 10)
+
+**See:** `apps/api/src/index.ts` and `apps/api/src/__tests__/rateLimiting.test.ts`
+
+---
+
+## Browser Automation (Playwright MCP)
+
+For any AI workflows that control a real browser (Playwright MCP or similar), you **MUST** follow:
+
+- [`docs/mcp/PLAYWRIGHT-GUARDRAILS.md`](mcp/PLAYWRIGHT-GUARDRAILS.md) - Full rules for AI browser automation
+- [`docs/ops/ENVIRONMENT-URLS.md`](ops/ENVIRONMENT-URLS.md) - Canonical list of all environment URLs
+
+These guardrails ensure AI agents only run against **staging environments** with test accounts and cannot accidentally damage production data. The production custom domain (`https://www.elderfirstchurch.com`) and production Azure App Service URLs are **off limits** for AI-driven browser automation.

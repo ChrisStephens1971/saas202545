@@ -2,13 +2,21 @@
 
 **Baseline Date:** 2025-12-04
 **Baseline Tag:** `security-baseline-2025-12-04` <!-- TODO: update with actual tag once created -->
-**Last Updated:** 2025-12-05
+**Last Updated:** 2025-12-06
 
 ---
 
 ## Executive Summary
 
-A comprehensive security audit was performed on **2025-12-04**, identifying 40+ issues across authentication, authorization, API design, database access, infrastructure, and CI/CD.
+A comprehensive security audit was performed on **2025-12-04**, identifying 40+ issues across authentication, authorization, API design, database access, infrastructure, and CI/CD. A follow-up audit on **2025-12-06** confirmed the strong security posture.
+
+**Latest Audit (2025-12-06):**
+- **0 Critical** findings
+- **0 High** findings
+- **2 Low** findings (both addressed)
+- **1 Informational** item
+
+See [SECURITY-AUDIT-REPORT-2025-12-06.md](SECURITY-AUDIT-REPORT-2025-12-06.md) for full details.
 
 **Current Status:**
 - All **8 Critical** findings have been remediated (Phase 1)
@@ -19,6 +27,9 @@ A comprehensive security audit was performed on **2025-12-04**, identifying 40+ 
   - Secrets scanning (Gitleaks) in CI pipeline
   - Structured security event logging
   - Docker container hardening
+- **2 Low** findings from 2025-12-06 audit addressed:
+  - LOW-001: Database package tenant context now uses parameterized queries
+  - LOW-002: next-auth beta tracked as maintenance item
 
 The platform now meets a strong security baseline suitable for production use in a multi-tenant church context.
 
@@ -33,6 +44,7 @@ The platform now meets a strong security baseline suitable for production use in
 | Phase 2 – High Fixes | Complete | [SECURITY-REMEDIATION-PHASE-2-2025-12-04.md](SECURITY-REMEDIATION-PHASE-2-2025-12-04.md) |
 | Phase 2.5 – NODE_ENV Typing | Complete | [SECURITY-REMEDIATION-PHASE-2-5-2025-12-04.md](SECURITY-REMEDIATION-PHASE-2-5-2025-12-04.md) |
 | Phase 3 – Medium/Hardening | Complete | [SECURITY-REMEDIATION-PHASE-3-2025-12-04.md](SECURITY-REMEDIATION-PHASE-3-2025-12-04.md) |
+| Security Test Suite | Active | [SECURITY-TESTS.md](SECURITY-TESTS.md) |
 
 ---
 
@@ -77,6 +89,13 @@ The platform now meets a strong security baseline suitable for production use in
 - Gitleaks secrets scanning in CI — Phase 3
 - Gitleaks allowlist configured for documentation examples — 2025-12-05
 - High severity npm audit vulnerabilities remediated (glob, jws) — 2025-12-05
+- Security test suite added (`npm run test:security`) — 2025-12-05
+
+**Security Test Suite:** See [SECURITY-TESTS.md](SECURITY-TESTS.md) for full details.
+- Run locally: `npm run test:security`
+- Tests: 75 security-focused tests across 3 suites
+- Coverage: SQL injection prevention, role-based access control, CSRF protection, tenant isolation, error handling
+- CI: Runs in `.github/workflows/ci.yml` as `security-tests` job
 
 **Gitleaks Configuration (`.gitleaks.toml`):**
 - Real secrets in code/config will fail the scan
@@ -85,6 +104,19 @@ The platform now meets a strong security baseline suitable for production use in
 - New documentation examples must use obviously fake values
 
 **References:** Phase 2 (H11, H12), Phase 3 (M3)
+
+### CVE Assessments
+
+**2025-12-08 – CVE-2025-55182 (React Server Components RCE) Assessment:**
+- **Status:** NOT AFFECTED
+- **Current Version:** Next.js 14.2.33
+- **Affected Versions:** ≥14.3.0-canary.77, ≥15.0.0, ≥16.0.0 (prior to patches)
+- **Patched Versions:** 15.0.5, 15.1.9, 15.2.6, 15.3.6, 15.4.8, 15.5.7, 16.0.7
+- **Analysis:** This vulnerability only affects experimental canary releases from 14.3.0-canary.77 onward and stable versions 15.0.0+. Stable Next.js 14.x releases (including 14.2.33) do NOT use the vulnerable RSC Flight protocol implementation.
+- **Action Required:** None. Continue monitoring for future CVEs.
+- **References:**
+  - [Vercel Advisory](https://vercel.com/changelog/cve-2025-55182)
+  - [GitHub Security Advisory](https://github.com/vercel/next.js/security/advisories/GHSA-9qr9-h5gf-34mp)
 
 ### Logging & Audit
 - JWT verification failure logging — Phase 2
@@ -141,6 +173,7 @@ No unaddressed **Critical** or **High** findings remain as of baseline.
 
 ## Related Documentation
 
+- [SECURITY-TESTS.md](SECURITY-TESTS.md) — Security test suite documentation
 - [SECURITY-AUDIT-2025-12-04.md](SECURITY-AUDIT-2025-12-04.md) — Full audit findings
 - [SECURITY-OPERATIONS-RUNBOOK.md](SECURITY-OPERATIONS-RUNBOOK.md) — Incident response procedures
 - [SECURITY-KEY-ROTATION.md](SECURITY-KEY-ROTATION.md) — Key rotation procedures

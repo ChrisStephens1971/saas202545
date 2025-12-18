@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+// ===== UI Mode =====
+// Per-user UI mode preference for dual-UI architecture.
+// 'accessible' is the default (elder-first baseline per P15).
+// 'modern' allows denser layouts but must still comply with P15 accessibility baselines.
+export const UiMode = z.enum(['modern', 'accessible']);
+export type UiMode = z.infer<typeof UiMode>;
+
+// Default UI mode - accessible-first per elder-first design principles
+export const DEFAULT_UI_MODE: UiMode = 'accessible';
+
 // ===== User Roles =====
 export const UserRole = z.enum(['Admin', 'Editor', 'Submitter', 'Viewer', 'Kiosk']);
 export type UserRole = z.infer<typeof UserRole>;
@@ -13,6 +23,7 @@ export const PersonSchema = z.object({
   email: z.string().email().nullable(),
   phone: z.string().nullable(),
   householdId: z.string().uuid().nullable(),
+  uiMode: UiMode.default('accessible'), // Per-user UI mode preference
   createdAt: z.date(),
   updatedAt: z.date(),
   deletedAt: z.date().nullable(),
@@ -286,15 +297,53 @@ const HymnElementSchema = SermonElementBaseSchema.extend({
   note: z.string().optional(),
 });
 
+const IllustrationElementSchema = SermonElementBaseSchema.extend({
+  type: z.literal('illustration'),
+  title: z.string(),
+  note: z.string().optional(),
+});
+
 export const SermonElementSchema = z.discriminatedUnion('type', [
   SectionElementSchema,
   PointElementSchema,
   NoteElementSchema,
   ScriptureElementSchema,
   HymnElementSchema,
+  IllustrationElementSchema,
 ]);
 
 export type SermonElement = z.infer<typeof SermonElementSchema>;
+
+// ===== Sermon Style Profile =====
+/**
+ * Sermon style profile for categorizing sermon structure.
+ * Used to provide style hints in templates and AI suggestions.
+ */
+export const SermonStyleProfileSchema = z.enum([
+  'story_first_3_point',       // Classic 3-point, story-first sermons
+  'expository_verse_by_verse', // Text-first, walk through the passage
+  'topical_teaching',          // Teaching-oriented, topical / doctrinal
+]);
+
+export type SermonStyleProfile = z.infer<typeof SermonStyleProfileSchema>;
+
+/**
+ * Human-readable labels for sermon style profiles.
+ */
+export const SermonStyleProfileLabels: Record<SermonStyleProfile, string> = {
+  story_first_3_point: 'Story-First 3-Point',
+  expository_verse_by_verse: 'Expository Verse-by-Verse',
+  topical_teaching: 'Topical Teaching',
+};
+
+/**
+ * Descriptions for each sermon style profile.
+ */
+export const SermonStyleProfileDescriptions: Record<SermonStyleProfile, string> = {
+  story_first_3_point: 'Classic sermon structure with opening story/hook, three main points, and application',
+  expository_verse_by_verse: 'Walk through a Scripture passage systematically, explaining each verse in context',
+  topical_teaching: 'Focus on a specific topic or doctrine, drawing from multiple Scripture passages',
+};
 
 // ===== Sermon Plan Schemas =====
 export const SermonPlanSchema = z.object({
@@ -308,6 +357,7 @@ export const SermonPlanSchema = z.object({
   elements: z.array(SermonElementSchema).optional().default([]),
   tags: z.array(z.string()).optional().default([]),
   notes: z.string().optional(),
+  styleProfile: SermonStyleProfileSchema.nullish(), // Optional sermon style categorization
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });
@@ -324,6 +374,7 @@ export const SermonPlanInputSchema = z.object({
   elements: z.array(SermonElementSchema).optional().default([]),
   tags: z.array(z.string()).optional().default([]),
   notes: z.string().optional(),
+  styleProfile: SermonStyleProfileSchema.nullish(), // Optional sermon style categorization
 });
 
 export type SermonPlanInput = z.infer<typeof SermonPlanInputSchema>;
@@ -338,6 +389,7 @@ export const SermonPlanDraftSchema = z.object({
   elements: z.array(SermonElementSchema).optional().default([]),
   tags: z.array(z.string()).optional().default([]),
   notes: z.string().optional(),
+  styleProfile: SermonStyleProfileSchema.nullish(), // Optional sermon style categorization
 });
 
 export type SermonPlanDraft = z.infer<typeof SermonPlanDraftSchema>;
@@ -353,6 +405,7 @@ export const SermonTemplateSchema = z.object({
   defaultSupportingTexts: z.array(z.string()).optional().default([]),
   structure: z.array(SermonElementSchema).optional().default([]),
   tags: z.array(z.string()).optional().default([]),
+  styleProfile: SermonStyleProfileSchema.nullish(), // Optional sermon style categorization
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -363,6 +416,7 @@ export const SermonTemplateInputSchema = z.object({
   sermonId: z.string().uuid(),
   name: z.string().min(1).max(200),
   tags: z.array(z.string()).optional().default([]),
+  styleProfile: SermonStyleProfileSchema.nullish(), // Optional sermon style categorization
 });
 
 export type SermonTemplateInput = z.infer<typeof SermonTemplateInputSchema>;
@@ -373,6 +427,7 @@ export const SermonTemplateListItemSchema = z.object({
   defaultTitle: z.string(),
   defaultPrimaryText: z.string(),
   tags: z.array(z.string()),
+  styleProfile: SermonStyleProfileSchema.nullish(), // Optional sermon style categorization
   createdAt: z.string(),
   updatedAt: z.string().optional(),
 });
@@ -392,6 +447,8 @@ export const ManuscriptImportMetaSchema = z.object({
   model: z.string().optional(),
   extractedElementsCount: z.number().int().nonnegative(),
 });
+
+export type ManuscriptImportMeta = z.infer<typeof ManuscriptImportMetaSchema>;
 
 export const ManuscriptImportResponseSchema = z.object({
   draft: SermonPlanDraftSchema,
@@ -474,11 +531,18 @@ export type AiFeature =
   | 'general';
 
 // ===== Theology Profile Types =====
+// Documentation: docs/settings/THEOLOGY-SETTINGS.md
 
 /**
- * Theological tradition/denomination for sermon content.
+ * Canonical theological traditions stored in the database.
+ * This is the single source of truth for valid tradition values.
+ *
+ * IMPORTANT: The UI may display more specific labels (e.g., "Presbyterian (PCA)")
+ * but only these canonical values are stored in the database.
+ *
+ * @see docs/settings/THEOLOGY-SETTINGS.md for full documentation
  */
-export const TheologyTraditionSchema = z.enum([
+export const THEOLOGICAL_TRADITIONS = [
   'Non-denominational evangelical',
   'Baptist',
   'Methodist',
@@ -489,8 +553,77 @@ export const TheologyTraditionSchema = z.enum([
   'Catholic',
   'Reformed',
   'Other',
-]);
+] as const;
+
+/**
+ * Theological tradition/denomination for sermon content.
+ * Uses the canonical THEOLOGICAL_TRADITIONS constant.
+ */
+export const TheologyTraditionSchema = z.enum(THEOLOGICAL_TRADITIONS);
 export type TheologyTradition = z.infer<typeof TheologyTraditionSchema>;
+
+/**
+ * UI option type for displaying theological traditions in select dropdowns.
+ * Maps a user-friendly label to a canonical stored value.
+ */
+export interface TheologyTraditionOption {
+  /** The value stored in the database (must be a valid TheologyTradition) */
+  value: TheologyTradition;
+  /** The label displayed to users in the UI */
+  label: string;
+}
+
+/**
+ * UI options for theological tradition select.
+ * Maps detailed denomination labels to canonical stored values.
+ *
+ * Design decision: Detailed denominations (e.g., "Presbyterian (PCA)")
+ * are expressed via UI labels while the stored value uses the broader tradition.
+ * This prevents database migration issues while providing user clarity.
+ */
+export const THEOLOGY_TRADITION_OPTIONS: readonly TheologyTraditionOption[] = [
+  { value: 'Non-denominational evangelical', label: 'Non-denominational evangelical' },
+  { value: 'Baptist', label: 'Reformed Baptist' },
+  { value: 'Baptist', label: 'Southern Baptist' },
+  { value: 'Presbyterian', label: 'Presbyterian (PCA)' },
+  { value: 'Presbyterian', label: 'Presbyterian (PCUSA)' },
+  { value: 'Anglican', label: 'Anglican/Episcopal' },
+  { value: 'Lutheran', label: 'Lutheran (LCMS)' },
+  { value: 'Lutheran', label: 'Lutheran (ELCA)' },
+  { value: 'Methodist', label: 'Methodist' },
+  { value: 'Pentecostal', label: 'Pentecostal/Charismatic' },
+  { value: 'Reformed', label: 'Church of Christ' },
+  { value: 'Catholic', label: 'Catholic' },
+  { value: 'Reformed', label: 'Orthodox' },
+  { value: 'Other', label: 'Other' },
+] as const;
+
+/**
+ * Get the canonical tradition value from a UI label.
+ * Useful for migration or data normalization.
+ */
+export function getCanonicalTradition(labelOrValue: string): TheologyTradition {
+  // First check if it's already a canonical value
+  if (THEOLOGICAL_TRADITIONS.includes(labelOrValue as TheologyTradition)) {
+    return labelOrValue as TheologyTradition;
+  }
+  // Then check if it matches a UI label
+  const option = THEOLOGY_TRADITION_OPTIONS.find(opt => opt.label === labelOrValue);
+  if (option) {
+    return option.value;
+  }
+  // Default to 'Other' for unknown traditions
+  return 'Other';
+}
+
+/**
+ * Get the display label for a stored tradition value.
+ * Returns the first matching label from the options.
+ */
+export function getTraditionDisplayLabel(value: TheologyTradition): string {
+  const option = THEOLOGY_TRADITION_OPTIONS.find(opt => opt.value === value);
+  return option?.label ?? value;
+}
 
 /**
  * Bible translation preference.
@@ -613,6 +746,17 @@ export const HymnThemeSchema = z.object({
 export type HymnTheme = z.infer<typeof HymnThemeSchema>;
 
 /**
+ * Illustration suggestion with title, summary, and optional section targeting.
+ */
+export const IllustrationSuggestionSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  summary: z.string(),
+  forSection: z.string().nullish(),
+});
+export type IllustrationSuggestion = z.infer<typeof IllustrationSuggestionSchema>;
+
+/**
  * Outline item for sermon structure.
  */
 export const OutlineItemSchema = z.object({
@@ -630,6 +774,7 @@ export const SermonHelperSuggestionsSchema = z.object({
   outlinePoints: z.array(SermonOutlinePointSchema).optional(),
   outline: z.array(OutlineItemSchema).optional(),
   illustrations: z.array(z.string()).optional(),
+  illustrationSuggestions: z.array(IllustrationSuggestionSchema).optional(),
   applications: z.array(z.string()).optional(),
   applicationIdeas: z.array(ApplicationIdeaSchema).optional(),
   quotes: z.array(z.string()).optional(),
@@ -637,6 +782,21 @@ export const SermonHelperSuggestionsSchema = z.object({
   hymnThemes: z.array(HymnThemeSchema).optional(),
 });
 export type SermonHelperSuggestions = z.infer<typeof SermonHelperSuggestionsSchema>;
+
+// ===== Sermon Draft (Phase 8) =====
+/**
+ * Generated preaching draft from SermonPlan.
+ * This is an ephemeral, AI-generated manuscript for oral delivery.
+ * Not persisted to database in Phase 8.
+ */
+export const SermonDraftSchema = z.object({
+  sermonId: z.string().uuid(),
+  styleProfile: SermonStyleProfileSchema.nullable().optional(),
+  theologyTradition: z.string().nullable().optional(),
+  createdAt: z.string().min(1),
+  contentMarkdown: z.string().min(1),
+});
+export type SermonDraft = z.infer<typeof SermonDraftSchema>;
 
 // ===== Bulletin View Model =====
 

@@ -8,8 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { SermonForm } from '@/components/sermons/SermonForm';
 import { SermonBuilder } from '@/components/sermons/SermonBuilder';
 import { ProtectedPage } from '@/components/auth/ProtectedPage';
-import { SermonHelperPanel, ManuscriptImportModal } from './_components';
-import { Presentation, Printer, FileUp } from 'lucide-react';
+import { SermonHelperPanel, ManuscriptImportModal, GenerateDraftModal } from './_components';
+import { Presentation, Printer, FileUp, Sparkles } from 'lucide-react';
 import type { SermonPlanDraft } from '@elder-first/types';
 
 export default function SermonDetailPage() {
@@ -20,6 +20,7 @@ export default function SermonDetailPage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [isManuscriptModalOpen, setIsManuscriptModalOpen] = useState(false);
+  const [isGenerateDraftModalOpen, setIsGenerateDraftModalOpen] = useState(false);
 
   const { data: sermon, isLoading, error } = trpc.sermons.get.useQuery({
     id: sermonId,
@@ -223,6 +224,34 @@ export default function SermonDetailPage() {
           </CardContent>
         </Card>
 
+        {/* Generate Preaching Draft Panel */}
+        <Card variant="outlined" className="mb-6">
+          <CardContent className="py-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Sparkles size={20} className="text-purple-600" />
+                  Generate Preaching Draft
+                  <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-800 rounded">
+                    Phase 8
+                  </span>
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Have a sermon plan? AI can generate a full preaching manuscript for you.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setIsGenerateDraftModalOpen(true)}
+                className="gap-2"
+              >
+                <Sparkles size={16} />
+                Generate Draft
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Sermon Helper Section - AI Suggestions, Hymn Finder, Outline Editor */}
         <div className="mb-6">
           <SermonHelperPanel
@@ -389,6 +418,14 @@ export default function SermonDetailPage() {
         sermonId={sermonId}
         sermonTitle={sermon.title}
         onImport={handleManuscriptImport}
+      />
+
+      {/* Generate Draft Modal */}
+      <GenerateDraftModal
+        isOpen={isGenerateDraftModalOpen}
+        onClose={() => setIsGenerateDraftModalOpen(false)}
+        sermonId={sermonId}
+        sermonTitle={sermon.title}
       />
     </ProtectedPage>
   );

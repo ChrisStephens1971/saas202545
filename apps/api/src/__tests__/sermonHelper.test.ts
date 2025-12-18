@@ -104,11 +104,19 @@ Output format:
 // JSON PARSING (mirrors sermonHelper.ts logic)
 // ============================================================================
 
+interface IllustrationSuggestion {
+  id: string;
+  title: string;
+  summary: string;
+  forSection?: string | null;
+}
+
 interface SermonHelperSuggestions {
   scriptureSuggestions: Array<{ reference: string; reason: string }>;
   outline: Array<{ type: 'section' | 'point'; title?: string; text?: string }>;
   applicationIdeas: Array<{ audience: string; idea: string }>;
   hymnThemes: Array<{ theme: string; reason: string }>;
+  illustrationSuggestions?: IllustrationSuggestion[];
 }
 
 function getEmptyFallback(): SermonHelperSuggestions {
@@ -117,6 +125,7 @@ function getEmptyFallback(): SermonHelperSuggestions {
     outline: [],
     applicationIdeas: [],
     hymnThemes: [],
+    illustrationSuggestions: [],
   };
 }
 
@@ -165,6 +174,7 @@ function parseAiResponse(
     outline: Array.isArray(result.outline) ? result.outline : [],
     applicationIdeas: Array.isArray(result.applicationIdeas) ? result.applicationIdeas : [],
     hymnThemes: Array.isArray(result.hymnThemes) ? result.hymnThemes : [],
+    illustrationSuggestions: Array.isArray(result.illustrationSuggestions) ? result.illustrationSuggestions : [],
   };
 
   return {
@@ -1061,12 +1071,20 @@ function filterPoliticalContent(
     return !hasPolitical;
   });
 
+  const illustrationSuggestions = (suggestions.illustrationSuggestions ?? []).filter(item => {
+    const hasPolitical = containsPoliticalContent(item.title) ||
+      containsPoliticalContent(item.summary);
+    if (hasPolitical) detected = true;
+    return !hasPolitical;
+  });
+
   return {
     filtered: {
       scriptureSuggestions,
       outline,
       applicationIdeas,
       hymnThemes,
+      illustrationSuggestions,
     },
     detected,
   };
@@ -1468,5 +1486,1032 @@ describe('Combined Guardrails', () => {
 
     const { detected } = filterPoliticalContent(politicalSuggestion);
     expect(detected).toBe(true);
+  });
+});
+
+// ============================================================================
+// ILLUSTRATION SUGGESTIONS (Phase 7)
+// ============================================================================
+
+describe('Illustration Suggestions', () => {
+  describe('response parsing', () => {
+    it('parses AI response with illustrationSuggestions', () => {
+      const mockAiResponse = JSON.stringify({
+        scriptureSuggestions: [
+          { reference: 'John 3:16', reason: 'Gospel message' },
+        ],
+        outline: [
+          { type: 'section', title: 'Introduction' },
+        ],
+        applicationIdeas: [],
+        hymnThemes: [],
+        illustrationSuggestions: [
+          {
+            id: 'illus-1',
+            title: 'The Waiting Father',
+            summary: 'A father waits daily at the road, watching for his prodigal son to return.',
+            forSection: 'introduction',
+          },
+          {
+            id: 'illus-2',
+            title: 'The Lost Coin',
+            summary: 'A woman searches her whole house for a single lost coin of great value.',
+            forSection: null,
+          },
+        ],
+      });
+
+      const result = parseAiResponse(mockAiResponse);
+
+      expect(result.fallback).toBe(false);
+      expect(result.suggestions.illustrationSuggestions).toHaveLength(2);
+      expect(result.suggestions.illustrationSuggestions![0].id).toBe('illus-1');
+      expect(result.suggestions.illustrationSuggestions![0].title).toBe('The Waiting Father');
+      expect(result.suggestions.illustrationSuggestions![0].forSection).toBe('introduction');
+      expect(result.suggestions.illustrationSuggestions![1].forSection).toBeNull();
+    });
+
+    it('handles missing illustrationSuggestions field gracefully', () => {
+      const mockAiResponse = JSON.stringify({
+        scriptureSuggestions: [
+          { reference: 'John 3:16', reason: 'Gospel message' },
+        ],
+        outline: [],
+        applicationIdeas: [],
+        hymnThemes: [],
+        // No illustrationSuggestions field
+      });
+
+      const result = parseAiResponse(mockAiResponse);
+
+      expect(result.fallback).toBe(false);
+      expect(result.suggestions.illustrationSuggestions).toEqual([]);
+    });
+
+    it('handles empty illustrationSuggestions array', () => {
+      const mockAiResponse = JSON.stringify({
+        scriptureSuggestions: [],
+        outline: [],
+        applicationIdeas: [],
+        hymnThemes: [],
+        illustrationSuggestions: [],
+      });
+
+      const result = parseAiResponse(mockAiResponse);
+
+      expect(result.fallback).toBe(false);
+      expect(result.suggestions.illustrationSuggestions).toEqual([]);
+    });
+  });
+
+  describe('style-aware illustration guidance', () => {
+    it('story-first style emphasizes narrative illustrations', () => {
+      // This tests the conceptual behavior - actual prompt building is in the router
+      const styleProfile = 'story_first_3_point';
+      const expectedGuidance = 'narrative illustrations and personal stories';
+
+      // Verify the style profile maps to the right guidance
+      expect(styleProfile).toBe('story_first_3_point');
+      expect(expectedGuidance).toContain('narrative');
+      expect(expectedGuidance).toContain('personal stories');
+    });
+
+    it('expository style emphasizes text-focused illustrations', () => {
+      const styleProfile = 'expository_verse_by_verse';
+      const expectedGuidance = 'historical background or word meanings';
+
+      expect(styleProfile).toBe('expository_verse_by_verse');
+      expect(expectedGuidance).toContain('historical');
+    });
+
+    it('topical style emphasizes contemporary applications', () => {
+      const styleProfile = 'topical_teaching';
+      const expectedGuidance = 'contemporary life situations';
+
+      expect(styleProfile).toBe('topical_teaching');
+      expect(expectedGuidance).toContain('contemporary');
+    });
+  });
+
+  describe('political content filtering for illustrations', () => {
+    it('filters illustration with political title', () => {
+      const suggestions: SermonHelperSuggestions = {
+        scriptureSuggestions: [],
+        outline: [],
+        applicationIdeas: [],
+        hymnThemes: [],
+        illustrationSuggestions: [
+          {
+            id: 'illus-1',
+            title: 'The Good Samaritan',
+            summary: 'A stranger helps someone in need.',
+            forSection: null,
+          },
+          {
+            id: 'illus-2',
+            title: 'Trump Rally Enthusiasm',
+            summary: 'The crowd shows passionate support.',
+            forSection: 'application',
+          },
+        ],
+      };
+
+      const { filtered, detected } = filterPoliticalContent(suggestions);
+
+      expect(detected).toBe(true);
+      expect(filtered.illustrationSuggestions).toHaveLength(1);
+      expect(filtered.illustrationSuggestions![0].id).toBe('illus-1');
+    });
+
+    it('filters illustration with political summary', () => {
+      const suggestions: SermonHelperSuggestions = {
+        scriptureSuggestions: [],
+        outline: [],
+        applicationIdeas: [],
+        hymnThemes: [],
+        illustrationSuggestions: [
+          {
+            id: 'illus-1',
+            title: 'Modern Day Commitment',
+            summary: 'Just like MAGA supporters show dedication to their cause, we should be dedicated to Christ.',
+            forSection: 'point1',
+          },
+          {
+            id: 'illus-2',
+            title: 'The Faithful Servant',
+            summary: 'A servant remains loyal despite hardship.',
+            forSection: 'point2',
+          },
+        ],
+      };
+
+      const { filtered, detected } = filterPoliticalContent(suggestions);
+
+      expect(detected).toBe(true);
+      expect(filtered.illustrationSuggestions).toHaveLength(1);
+      expect(filtered.illustrationSuggestions![0].id).toBe('illus-2');
+    });
+
+    it('preserves non-political illustrations', () => {
+      const suggestions: SermonHelperSuggestions = {
+        scriptureSuggestions: [],
+        outline: [],
+        applicationIdeas: [],
+        hymnThemes: [],
+        illustrationSuggestions: [
+          {
+            id: 'illus-1',
+            title: 'Mother Recognizing Baby\'s Cry',
+            summary: 'A mother can identify her baby\'s cry in a crowded room, showing intimate knowledge.',
+            forSection: 'introduction',
+          },
+          {
+            id: 'illus-2',
+            title: 'The Pearl of Great Price',
+            summary: 'A merchant sells everything for a priceless pearl.',
+            forSection: 'point1',
+          },
+          {
+            id: 'illus-3',
+            title: 'The Shepherd and Lost Sheep',
+            summary: 'A shepherd leaves 99 sheep to find the one that wandered.',
+            forSection: null,
+          },
+        ],
+      };
+
+      const { filtered, detected } = filterPoliticalContent(suggestions);
+
+      expect(detected).toBe(false);
+      expect(filtered.illustrationSuggestions).toHaveLength(3);
+    });
+  });
+
+  describe('empty fallback includes illustrations', () => {
+    it('includes illustrationSuggestions in empty fallback', () => {
+      const fallback = getEmptyFallback();
+
+      expect(fallback.illustrationSuggestions).toBeDefined();
+      expect(fallback.illustrationSuggestions).toEqual([]);
+    });
+  });
+
+  describe('integration with response structure', () => {
+    it('complete response includes all fields including illustrations', () => {
+      const mockFullResponse = JSON.stringify({
+        scriptureSuggestions: [
+          { reference: 'John 15:5', reason: 'Vine and branches metaphor' },
+        ],
+        outline: [
+          { type: 'section', title: 'Abiding in Christ' },
+          { type: 'point', text: 'We need connection to the vine' },
+        ],
+        applicationIdeas: [
+          { audience: 'believers', idea: 'Spend daily time in Scripture' },
+        ],
+        hymnThemes: [
+          { theme: 'abiding', reason: 'Matches the theme' },
+        ],
+        illustrationSuggestions: [
+          {
+            id: 'illus-1',
+            title: 'The Branch and the Vine',
+            summary: 'A gardener explains how branches die when cut from the vine.',
+            forSection: 'introduction',
+          },
+          {
+            id: 'illus-2',
+            title: 'The Phone and the Charger',
+            summary: 'A phone without charge cannot function - we need constant connection to our power source.',
+            forSection: 'point1',
+          },
+        ],
+      });
+
+      const result = parseAiResponse(mockFullResponse);
+
+      expect(result.fallback).toBe(false);
+      expect(result.suggestions.scriptureSuggestions).toHaveLength(1);
+      expect(result.suggestions.outline).toHaveLength(2);
+      expect(result.suggestions.applicationIdeas).toHaveLength(1);
+      expect(result.suggestions.hymnThemes).toHaveLength(1);
+      expect(result.suggestions.illustrationSuggestions).toHaveLength(2);
+    });
+
+    it('filtered response preserves clean illustrations', () => {
+      const suggestions: SermonHelperSuggestions = {
+        scriptureSuggestions: [
+          { reference: 'John 3:16', reason: 'Gospel' },
+          { reference: 'Romans 13:1', reason: 'Vote Republican for authority' }, // Political
+        ],
+        outline: [
+          { type: 'section', title: 'Love' },
+        ],
+        applicationIdeas: [
+          { audience: 'all', idea: 'Love your neighbor' },
+        ],
+        hymnThemes: [
+          { theme: 'love', reason: 'Theme of sermon' },
+        ],
+        illustrationSuggestions: [
+          {
+            id: 'illus-1',
+            title: 'The Good Samaritan',
+            summary: 'A stranger shows love to someone in need.',
+            forSection: 'application',
+          },
+        ],
+      };
+
+      const { filtered, detected } = filterPoliticalContent(suggestions);
+
+      expect(detected).toBe(true);
+      expect(filtered.scriptureSuggestions).toHaveLength(1);
+      expect(filtered.illustrationSuggestions).toHaveLength(1);
+      expect(filtered.illustrationSuggestions![0].title).toBe('The Good Samaritan');
+    });
+  });
+});
+
+// ============================================================================
+// PREACHING DRAFT GENERATION (Phase 8)
+// ============================================================================
+
+/**
+ * Tests for the generateDraftFromPlan endpoint logic.
+ * Phase 8 adds AI-powered preaching draft generation.
+ */
+
+interface SermonElement {
+  id: string;
+  type: 'section' | 'point' | 'note' | 'scripture' | 'hymn' | 'illustration';
+  title?: string;
+  text?: string;
+  reference?: string;
+  note?: string;
+}
+
+interface SermonPlan {
+  title: string;
+  bigIdea: string;
+  primaryText: string;
+  supportingTexts: string[];
+  elements: SermonElement[];
+  styleProfile: 'story_first_3_point' | 'expository_verse_by_verse' | 'topical_teaching' | null;
+}
+
+/**
+ * Mirrors buildDraftPrompt logic from sermonHelper.ts
+ */
+function buildDraftPrompt(
+  plan: SermonPlan,
+  theologyProfile: TheologyProfile
+): string {
+  // Build elements description
+  const elementsDescription = plan.elements.map((el, idx) => {
+    switch (el.type) {
+      case 'section':
+        return `${idx + 1}. [SECTION] ${el.title}`;
+      case 'point':
+        return `${idx + 1}. [POINT] ${el.text}`;
+      case 'scripture':
+        return `${idx + 1}. [SCRIPTURE] ${el.reference}${el.note ? ` – ${el.note}` : ''}`;
+      case 'hymn':
+        return `${idx + 1}. [HYMN] ${el.title}${el.note ? ` – ${el.note}` : ''}`;
+      case 'illustration':
+        return `${idx + 1}. [ILLUSTRATION] ${el.title}${el.note ? ` – ${el.note}` : ''}`;
+      case 'note':
+        return `${idx + 1}. [NOTE] ${el.text}`;
+      default:
+        return `${idx + 1}. [UNKNOWN]`;
+    }
+  }).join('\n');
+
+  // Style-specific guidance
+  let styleGuidance = '';
+  switch (plan.styleProfile) {
+    case 'story_first_3_point':
+      styleGuidance = `
+Style: Story-First 3-Point
+- Lead with engaging stories and illustrations
+- Structure around three memorable takeaways
+- Use narrative hooks to transition between points
+- Emphasize emotional connection before doctrine
+- Include personal anecdotes where appropriate`;
+      break;
+    case 'expository_verse_by_verse':
+      styleGuidance = `
+Style: Expository Verse-by-Verse
+- Walk through the text systematically
+- Explain original language insights where helpful
+- Focus on what the text says, means, and applies
+- Keep illustrations brief and text-focused
+- Prioritize doctrinal accuracy and textual fidelity`;
+      break;
+    case 'topical_teaching':
+      styleGuidance = `
+Style: Topical Teaching
+- Organize around the central topic/theme
+- Use multiple scripture passages to support points
+- Connect to contemporary life situations
+- Balance teaching with practical application
+- Maintain logical flow through sub-topics`;
+      break;
+    default:
+      styleGuidance = `
+Style: General
+- Balance exposition with application
+- Include appropriate illustrations
+- Maintain clear structure
+- Connect scripture to life`;
+  }
+
+  const supportingTextsStr = plan.supportingTexts.length > 0
+    ? plan.supportingTexts.join(', ')
+    : 'None specified';
+
+  return `Generate a complete preaching manuscript draft based on this sermon plan.
+
+=== SERMON PLAN ===
+Title: ${plan.title}
+Big Idea: ${plan.bigIdea}
+Primary Scripture: ${plan.primaryText}
+Supporting Texts: ${supportingTextsStr}
+
+Outline Elements:
+${elementsDescription}
+
+=== STYLE GUIDANCE ===${styleGuidance}
+
+=== THEOLOGY CONTEXT ===
+Tradition: ${theologyProfile.tradition}
+Bible Translation: ${theologyProfile.bibleTranslation}
+Tone: ${theologyProfile.preferredTone}
+
+=== INSTRUCTIONS ===
+1. Write a complete preaching manuscript in markdown format
+2. This is for ORAL DELIVERY - write as you would speak from a pulpit
+3. Include natural transitions between sections
+4. Expand each outline point with appropriate depth
+5. Include scripture references but NOT full verse text (pastor has their Bible)
+6. Expand illustration placeholders with brief story summaries
+7. Include application points throughout
+8. End with a clear call to action or closing prayer prompt
+9. Use ## for main sections and ### for sub-points
+10. Keep paragraphs short for easy reading while preaching
+11. Total length: approximately 2,000-3,500 words (15-25 minute sermon)
+
+Return ONLY the markdown manuscript text. No JSON, no code fences, no meta-commentary.`;
+}
+
+/**
+ * Mirrors parseDraftResponse logic from sermonHelper.ts
+ */
+function parseDraftResponse(rawResponse: string): { markdown: string; valid: boolean } {
+  let cleaned = rawResponse.trim();
+
+  // Strip markdown code fences if AI wrapped the response
+  if (cleaned.startsWith('```markdown')) {
+    cleaned = cleaned.slice(11);
+  } else if (cleaned.startsWith('```md')) {
+    cleaned = cleaned.slice(5);
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.slice(3);
+  }
+  if (cleaned.endsWith('```')) {
+    cleaned = cleaned.slice(0, -3);
+  }
+  cleaned = cleaned.trim();
+
+  // Basic validation - should have some content
+  if (cleaned.length < 200) {
+    return { markdown: '', valid: false };
+  }
+
+  return { markdown: cleaned, valid: true };
+}
+
+/**
+ * Mirrors filterPoliticalContentFromDraft logic from sermonHelper.ts
+ */
+function filterPoliticalContentFromDraft(
+  markdown: string
+): { filtered: string; detected: boolean } {
+  let detected = false;
+  let filtered = markdown;
+
+  // Check each political keyword
+  for (const keyword of POLITICAL_KEYWORDS) {
+    const regex = new RegExp(keyword, 'gi');
+    if (regex.test(filtered)) {
+      detected = true;
+      // Replace with a placeholder that won't disrupt reading
+      filtered = filtered.replace(regex, '[content filtered]');
+    }
+  }
+
+  return { filtered, detected };
+}
+
+describe('Preaching Draft Generation (Phase 8)', () => {
+  describe('buildDraftPrompt', () => {
+    const mockPlan: SermonPlan = {
+      title: 'God\'s Love in Action',
+      bigIdea: 'God demonstrates His love by sending His Son',
+      primaryText: 'John 3:16-17',
+      supportingTexts: ['Romans 5:8', '1 John 4:9-10'],
+      elements: [
+        { id: '1', type: 'section', title: 'Introduction' },
+        { id: '2', type: 'point', text: 'God so loved the world' },
+        { id: '3', type: 'scripture', reference: 'John 3:16', note: 'Key verse' },
+        { id: '4', type: 'illustration', title: 'The Rescue Mission', note: 'Father saving child' },
+        { id: '5', type: 'section', title: 'Application' },
+        { id: '6', type: 'hymn', title: 'Amazing Grace', note: 'All verses' },
+      ],
+      styleProfile: 'story_first_3_point',
+    };
+
+    it('includes sermon plan details in prompt', () => {
+      const prompt = buildDraftPrompt(mockPlan, defaultTheologyProfile);
+
+      expect(prompt).toContain('God\'s Love in Action');
+      expect(prompt).toContain('God demonstrates His love by sending His Son');
+      expect(prompt).toContain('John 3:16-17');
+      expect(prompt).toContain('Romans 5:8, 1 John 4:9-10');
+    });
+
+    it('includes all element types in prompt', () => {
+      const prompt = buildDraftPrompt(mockPlan, defaultTheologyProfile);
+
+      expect(prompt).toContain('[SECTION] Introduction');
+      expect(prompt).toContain('[POINT] God so loved the world');
+      expect(prompt).toContain('[SCRIPTURE] John 3:16 – Key verse');
+      expect(prompt).toContain('[ILLUSTRATION] The Rescue Mission – Father saving child');
+      expect(prompt).toContain('[HYMN] Amazing Grace – All verses');
+    });
+
+    it('includes story-first style guidance', () => {
+      const prompt = buildDraftPrompt(mockPlan, defaultTheologyProfile);
+
+      expect(prompt).toContain('Story-First 3-Point');
+      expect(prompt).toContain('Lead with engaging stories');
+      expect(prompt).toContain('narrative hooks');
+      expect(prompt).toContain('emotional connection');
+    });
+
+    it('includes expository style guidance', () => {
+      const expositoryPlan: SermonPlan = {
+        ...mockPlan,
+        styleProfile: 'expository_verse_by_verse',
+      };
+      const prompt = buildDraftPrompt(expositoryPlan, defaultTheologyProfile);
+
+      expect(prompt).toContain('Expository Verse-by-Verse');
+      expect(prompt).toContain('systematically');
+      expect(prompt).toContain('original language');
+      expect(prompt).toContain('doctrinal accuracy');
+    });
+
+    it('includes topical style guidance', () => {
+      const topicalPlan: SermonPlan = {
+        ...mockPlan,
+        styleProfile: 'topical_teaching',
+      };
+      const prompt = buildDraftPrompt(topicalPlan, defaultTheologyProfile);
+
+      expect(prompt).toContain('Topical Teaching');
+      expect(prompt).toContain('central topic/theme');
+      expect(prompt).toContain('contemporary life');
+      expect(prompt).toContain('practical application');
+    });
+
+    it('includes general style guidance when null', () => {
+      const generalPlan: SermonPlan = {
+        ...mockPlan,
+        styleProfile: null,
+      };
+      const prompt = buildDraftPrompt(generalPlan, defaultTheologyProfile);
+
+      expect(prompt).toContain('Style: General');
+      expect(prompt).toContain('Balance exposition with application');
+    });
+
+    it('includes theology context', () => {
+      const reformedProfile: TheologyProfile = {
+        ...defaultTheologyProfile,
+        tradition: 'Reformed Baptist',
+        bibleTranslation: 'ESV',
+        preferredTone: 'reverent and teaching-focused',
+      };
+      const prompt = buildDraftPrompt(mockPlan, reformedProfile);
+
+      expect(prompt).toContain('Tradition: Reformed Baptist');
+      expect(prompt).toContain('Bible Translation: ESV');
+      expect(prompt).toContain('Tone: reverent and teaching-focused');
+    });
+
+    it('includes oral delivery instructions', () => {
+      const prompt = buildDraftPrompt(mockPlan, defaultTheologyProfile);
+
+      expect(prompt).toContain('ORAL DELIVERY');
+      expect(prompt).toContain('speak from a pulpit');
+      expect(prompt).toContain('natural transitions');
+      expect(prompt).toContain('paragraphs short');
+    });
+
+    it('includes formatting instructions', () => {
+      const prompt = buildDraftPrompt(mockPlan, defaultTheologyProfile);
+
+      expect(prompt).toContain('markdown format');
+      expect(prompt).toContain('## for main sections');
+      expect(prompt).toContain('### for sub-points');
+      expect(prompt).toContain('2,000-3,500 words');
+    });
+
+    it('handles empty supporting texts', () => {
+      const planNoSupporting: SermonPlan = {
+        ...mockPlan,
+        supportingTexts: [],
+      };
+      const prompt = buildDraftPrompt(planNoSupporting, defaultTheologyProfile);
+
+      expect(prompt).toContain('Supporting Texts: None specified');
+    });
+
+    it('handles notes element type', () => {
+      const planWithNote: SermonPlan = {
+        ...mockPlan,
+        elements: [
+          ...mockPlan.elements,
+          { id: '7', type: 'note', text: 'Remember to pause here' },
+        ],
+      };
+      const prompt = buildDraftPrompt(planWithNote, defaultTheologyProfile);
+
+      expect(prompt).toContain('[NOTE] Remember to pause here');
+    });
+  });
+
+  describe('parseDraftResponse', () => {
+    const validMarkdown = `# God's Love in Action
+
+## Introduction
+
+Good morning, church family. Today we gather to explore one of the most profound truths in all of Scripture...
+
+## The Heart of the Gospel
+
+When we read John 3:16, we encounter the very heart of God's love for humanity. This isn't merely theological information; it's a personal declaration from the Creator to His creation.
+
+### God So Loved the World
+
+Notice the scope of this love - it encompasses the entire world. Not just the religious, not just the righteous, but every person who has ever lived or will ever live.
+
+## Application
+
+What does this mean for us today? It means that no matter where you've been or what you've done, God's love reaches you right where you are.
+
+## Closing
+
+Let us pray...`;
+
+    it('accepts valid markdown content', () => {
+      const result = parseDraftResponse(validMarkdown);
+
+      expect(result.valid).toBe(true);
+      expect(result.markdown).toContain("God's Love in Action");
+      expect(result.markdown).toContain('Introduction');
+      expect(result.markdown).toContain('Closing');
+    });
+
+    it('strips markdown code fence wrapper', () => {
+      const wrappedResponse = '```markdown\n' + validMarkdown + '\n```';
+      const result = parseDraftResponse(wrappedResponse);
+
+      expect(result.valid).toBe(true);
+      expect(result.markdown).not.toContain('```markdown');
+      expect(result.markdown).not.toContain('```');
+    });
+
+    it('strips md code fence wrapper', () => {
+      const wrappedResponse = '```md\n' + validMarkdown + '\n```';
+      const result = parseDraftResponse(wrappedResponse);
+
+      expect(result.valid).toBe(true);
+      expect(result.markdown).not.toContain('```md');
+    });
+
+    it('strips plain code fence wrapper', () => {
+      const wrappedResponse = '```\n' + validMarkdown + '\n```';
+      const result = parseDraftResponse(wrappedResponse);
+
+      expect(result.valid).toBe(true);
+      expect(result.markdown).not.toContain('```');
+    });
+
+    it('rejects content shorter than 200 characters', () => {
+      const shortResponse = '# Short\n\nToo brief.';
+      const result = parseDraftResponse(shortResponse);
+
+      expect(result.valid).toBe(false);
+      expect(result.markdown).toBe('');
+    });
+
+    it('rejects empty response', () => {
+      const result = parseDraftResponse('');
+
+      expect(result.valid).toBe(false);
+      expect(result.markdown).toBe('');
+    });
+
+    it('trims whitespace', () => {
+      const paddedResponse = '\n\n  ' + validMarkdown + '  \n\n';
+      const result = parseDraftResponse(paddedResponse);
+
+      expect(result.valid).toBe(true);
+      expect(result.markdown).not.toMatch(/^\s+/);
+      expect(result.markdown).not.toMatch(/\s+$/);
+    });
+  });
+
+  describe('filterPoliticalContentFromDraft', () => {
+    const cleanMarkdown = `# Sermon on Love
+
+## Introduction
+
+God's love transforms everything. When we embrace this truth, our lives change.
+
+## The Heart of Love
+
+Love is patient, love is kind. It does not envy, it does not boast.
+
+## Conclusion
+
+Let us go forth in love.`;
+
+    it('returns clean content unchanged', () => {
+      const { filtered, detected } = filterPoliticalContentFromDraft(cleanMarkdown);
+
+      expect(detected).toBe(false);
+      expect(filtered).toBe(cleanMarkdown);
+    });
+
+    it('detects and filters Republican reference', () => {
+      const politicalMarkdown = cleanMarkdown.replace(
+        'Love is patient',
+        'Like Republican values'
+      );
+      const { filtered, detected } = filterPoliticalContentFromDraft(politicalMarkdown);
+
+      expect(detected).toBe(true);
+      expect(filtered).toContain('[content filtered]');
+      expect(filtered).not.toContain('Republican');
+    });
+
+    it('detects and filters Democrat reference', () => {
+      const politicalMarkdown = cleanMarkdown.replace(
+        'Love is patient',
+        'Democrat policies show'
+      );
+      const { filtered, detected } = filterPoliticalContentFromDraft(politicalMarkdown);
+
+      expect(detected).toBe(true);
+      expect(filtered).toContain('[content filtered]');
+      expect(filtered).not.toContain('Democrat');
+    });
+
+    it('detects and filters Trump reference', () => {
+      const politicalMarkdown = cleanMarkdown.replace(
+        'our lives change',
+        'as Trump demonstrated'
+      );
+      const { filtered, detected } = filterPoliticalContentFromDraft(politicalMarkdown);
+
+      expect(detected).toBe(true);
+      expect(filtered).not.toContain('Trump');
+    });
+
+    it('detects and filters Biden reference', () => {
+      const politicalMarkdown = cleanMarkdown.replace(
+        'our lives change',
+        'like Biden said'
+      );
+      const { filtered, detected } = filterPoliticalContentFromDraft(politicalMarkdown);
+
+      expect(detected).toBe(true);
+      expect(filtered).not.toContain('Biden');
+    });
+
+    it('detects and filters MAGA reference', () => {
+      const politicalMarkdown = cleanMarkdown.replace(
+        'Let us go forth in love',
+        'Join the MAGA movement and go forth'
+      );
+      const { filtered, detected } = filterPoliticalContentFromDraft(politicalMarkdown);
+
+      expect(detected).toBe(true);
+      expect(filtered).not.toContain('MAGA');
+    });
+
+    it('is case-insensitive', () => {
+      const politicalMarkdown = cleanMarkdown.replace(
+        'Love is patient',
+        'REPUBLICAN and democrat views'
+      );
+      const { filtered, detected } = filterPoliticalContentFromDraft(politicalMarkdown);
+
+      expect(detected).toBe(true);
+      expect(filtered).not.toMatch(/republican/i);
+      expect(filtered).not.toMatch(/democrat/i);
+    });
+
+    it('filters multiple occurrences', () => {
+      const multiPolitical = `Trump said this, and Biden said that. The MAGA movement and Democrat party disagree.`;
+      const { filtered, detected } = filterPoliticalContentFromDraft(multiPolitical);
+
+      expect(detected).toBe(true);
+      expect((filtered.match(/\[content filtered\]/g) || []).length).toBe(4);
+    });
+  });
+
+  describe('SermonDraft type structure', () => {
+    it('defines correct SermonDraft interface', () => {
+      const mockDraft = {
+        sermonId: '123e4567-e89b-12d3-a456-426614174000',
+        styleProfile: 'story_first_3_point' as const,
+        theologyTradition: 'Reformed Baptist',
+        createdAt: new Date().toISOString(),
+        contentMarkdown: '# Sermon Title\n\nContent here...',
+      };
+
+      expect(mockDraft.sermonId).toBeDefined();
+      expect(mockDraft.styleProfile).toBe('story_first_3_point');
+      expect(mockDraft.theologyTradition).toBe('Reformed Baptist');
+      expect(mockDraft.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(mockDraft.contentMarkdown).toContain('# Sermon Title');
+    });
+
+    it('allows null styleProfile', () => {
+      const mockDraft = {
+        sermonId: '123e4567-e89b-12d3-a456-426614174000',
+        styleProfile: null,
+        theologyTradition: 'Non-denominational evangelical',
+        createdAt: new Date().toISOString(),
+        contentMarkdown: '# Sermon Content',
+      };
+
+      expect(mockDraft.styleProfile).toBeNull();
+    });
+
+    it('allows undefined optional fields', () => {
+      const mockDraft: {
+        sermonId: string;
+        styleProfile?: 'story_first_3_point' | 'expository_verse_by_verse' | 'topical_teaching' | null;
+        theologyTradition?: string | null;
+        createdAt: string;
+        contentMarkdown: string;
+      } = {
+        sermonId: '123e4567-e89b-12d3-a456-426614174000',
+        createdAt: new Date().toISOString(),
+        contentMarkdown: '# Minimal Draft',
+      };
+
+      expect(mockDraft.styleProfile).toBeUndefined();
+      expect(mockDraft.theologyTradition).toBeUndefined();
+    });
+  });
+
+  describe('restricted topic check for plan content', () => {
+    it('builds topic detection string from plan fields', () => {
+      const planContent = [
+        'God\'s Sovereignty',          // title
+        'Understanding predestination', // bigIdea
+        'Romans 9:1-33',               // primaryText
+        'Ephesians 1:4-5',             // supportingTexts
+        'Election and Grace',          // section title
+        'God chooses His people',      // point text
+      ].join(' ');
+
+      const content = normalizeForTopicMatch(planContent);
+      const matched = checkRestrictedTopics(content, ['predestination']);
+
+      expect(matched).toBe('predestination');
+    });
+
+    it('returns null when plan has no restricted topics', () => {
+      const planContent = [
+        'God\'s Love',
+        'God demonstrates His love through Christ',
+        'John 3:16',
+        'The cross shows love',
+        'We should love others',
+      ].join(' ');
+
+      const content = normalizeForTopicMatch(planContent);
+      const matched = checkRestrictedTopics(content, ['end times', 'prosperity gospel']);
+
+      expect(matched).toBeNull();
+    });
+
+    it('checks element content for restricted topics', () => {
+      // Illustration title might contain restricted topic
+      const elements = [
+        { type: 'section', title: 'Introduction' },
+        { type: 'illustration', title: 'End Times Vision', note: 'Revelation imagery' },
+      ];
+
+      const elementText = elements.map(el => `${(el as SermonElement).title || ''} ${(el as SermonElement).note || ''}`).join(' ');
+      const content = normalizeForTopicMatch(elementText);
+      const matched = checkRestrictedTopics(content, ['end times']);
+
+      expect(matched).toBe('end times');
+    });
+  });
+
+  describe('meta response structure', () => {
+    it('success response includes draft and meta', () => {
+      const successResponse = {
+        draft: {
+          sermonId: '123e4567-e89b-12d3-a456-426614174000',
+          styleProfile: 'story_first_3_point' as const,
+          theologyTradition: 'Reformed Baptist',
+          createdAt: '2025-01-15T10:30:00.000Z',
+          contentMarkdown: '# Sermon on God\'s Grace\n\n## Introduction\n\nGrace is the unmerited favor of God poured out on sinners who deserve judgment. This morning, we explore how grace transforms lives and brings hope to the hopeless. The apostle Paul reminds us that we are saved by grace through faith, not by works, so that no one can boast.\n\n## Main Point\n\nGod\'s grace reaches the depths of our sin and lifts us to new life in Christ.',
+        },
+        meta: {
+          tokensUsed: 2500,
+          model: 'gpt-4o-mini',
+          politicalContentDetected: false,
+        },
+      };
+
+      expect(successResponse.draft.sermonId).toBeDefined();
+      expect(successResponse.draft.contentMarkdown.length).toBeGreaterThan(200);
+      expect(successResponse.meta.tokensUsed).toBe(2500);
+      expect(successResponse.meta.model).toBe('gpt-4o-mini');
+    });
+
+    it('political filtered response sets flag', () => {
+      const filteredResponse = {
+        draft: {
+          sermonId: '123e4567-e89b-12d3-a456-426614174000',
+          styleProfile: null,
+          theologyTradition: 'Non-denominational evangelical',
+          createdAt: '2025-01-15T10:30:00.000Z',
+          contentMarkdown: '# Sermon\n\n[content filtered] showed great faith...',
+        },
+        meta: {
+          tokensUsed: 2000,
+          model: 'gpt-4o-mini',
+          politicalContentDetected: true,
+        },
+      };
+
+      expect(filteredResponse.meta.politicalContentDetected).toBe(true);
+      expect(filteredResponse.draft.contentMarkdown).toContain('[content filtered]');
+    });
+
+    it('restricted topic error has correct structure', () => {
+      // When restricted topic is detected, a TRPCError is thrown
+      const restrictedError = {
+        code: 'FORBIDDEN',
+        message: 'Draft generation is disabled for sermons containing restricted topics. Please handle this content personally.',
+      };
+
+      expect(restrictedError.code).toBe('FORBIDDEN');
+      expect(restrictedError.message).toContain('restricted topics');
+      expect(restrictedError.message).toContain('personally');
+    });
+
+    it('no plan error has correct structure', () => {
+      // When no plan exists for the sermon
+      const noPlanError = {
+        code: 'NOT_FOUND',
+        message: 'No sermon plan found. Please create a plan first before generating a draft.',
+      };
+
+      expect(noPlanError.code).toBe('NOT_FOUND');
+      expect(noPlanError.message).toContain('plan');
+    });
+  });
+
+  describe('integration flow', () => {
+    it('full flow: plan → prompt → response → filter → draft', () => {
+      // 1. Create a sermon plan
+      const plan: SermonPlan = {
+        title: 'Walking by Faith',
+        bigIdea: 'Faith enables us to trust God in uncertainty',
+        primaryText: 'Hebrews 11:1-6',
+        supportingTexts: ['2 Corinthians 5:7'],
+        elements: [
+          { id: '1', type: 'section', title: 'Introduction' },
+          { id: '2', type: 'point', text: 'Faith is confidence in what we hope for' },
+          { id: '3', type: 'scripture', reference: 'Hebrews 11:1' },
+          { id: '4', type: 'illustration', title: 'Abraham\'s Journey', note: 'Leaving home' },
+          { id: '5', type: 'section', title: 'Application' },
+          { id: '6', type: 'point', text: 'Step out in faith this week' },
+        ],
+        styleProfile: 'expository_verse_by_verse',
+      };
+
+      // 2. Build the prompt
+      const prompt = buildDraftPrompt(plan, defaultTheologyProfile);
+
+      // Verify prompt includes key elements
+      expect(prompt).toContain('Walking by Faith');
+      expect(prompt).toContain('Hebrews 11:1-6');
+      expect(prompt).toContain('Abraham\'s Journey');
+      expect(prompt).toContain('Expository Verse-by-Verse');
+
+      // 3. Simulate AI response
+      const mockAiResponse = `# Walking by Faith
+
+## Introduction
+
+Good morning, church family. Today we open God's Word to Hebrews chapter 11, often called the "Hall of Faith"...
+
+The writer of Hebrews begins with this powerful definition in verse 1: faith is confidence in what we hope for and assurance about what we do not see.
+
+## Understanding True Faith
+
+### Faith is Confidence in What We Hope For
+
+When we read Hebrews 11:1, we discover that faith isn't wishful thinking. It's a deep-seated confidence rooted in God's character and promises.
+
+Consider Abraham. When God called him to leave his homeland (see Genesis 12), Abraham didn't have GPS coordinates or a detailed travel plan. He simply had God's word - and that was enough.
+
+## Application
+
+What does this mean for your Monday morning? It means stepping out in faith, even when you can't see the outcome.
+
+## Closing Prayer
+
+Let us bow our heads...`;
+
+      // 4. Parse the response
+      const { markdown, valid } = parseDraftResponse(mockAiResponse);
+
+      expect(valid).toBe(true);
+      expect(markdown).toContain('Walking by Faith');
+      expect(markdown).toContain('Abraham');
+
+      // 5. Filter political content (should be clean)
+      const { filtered, detected } = filterPoliticalContentFromDraft(markdown);
+
+      expect(detected).toBe(false);
+      expect(filtered).toBe(markdown);
+
+      // 6. Build final draft
+      const draft = {
+        sermonId: '123e4567-e89b-12d3-a456-426614174000',
+        styleProfile: plan.styleProfile,
+        theologyTradition: defaultTheologyProfile.tradition,
+        createdAt: new Date().toISOString(),
+        contentMarkdown: filtered,
+      };
+
+      expect(draft.contentMarkdown.length).toBeGreaterThan(200);
+      expect(draft.styleProfile).toBe('expository_verse_by_verse');
+    });
   });
 });

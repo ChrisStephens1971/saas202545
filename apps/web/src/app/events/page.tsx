@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { trpc } from '@/lib/trpc/client';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -9,15 +9,28 @@ import Link from 'next/link';
 export default function EventsPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // Get events for current month
-  const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-  const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+  // Extract year and month for stable dependency array
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth();
 
-  const { data: eventsData, isLoading } = trpc.events.list.useQuery({
-    startDate: startOfMonth.toISOString(),
-    endDate: endOfMonth.toISOString(),
-    limit: 100,
-  });
+  // Memoize date range to prevent unstable query keys
+  const monthRange = useMemo(() => {
+    const startOfMonth = new Date(currentYear, currentMonth, 1);
+    const endOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
+    return {
+      startDate: startOfMonth.toISOString(),
+      endDate: endOfMonth.toISOString(),
+    };
+  }, [currentYear, currentMonth]);
+
+  const { data: eventsData, isLoading } = trpc.events.list.useQuery(
+    {
+      startDate: monthRange.startDate,
+      endDate: monthRange.endDate,
+      limit: 100,
+    },
+    { staleTime: 30000 }
+  );
 
   const events = eventsData?.events || [];
 

@@ -8,29 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ProtectedPage } from '@/components/auth/ProtectedPage';
 import Link from 'next/link';
 import { Info, ShieldAlert, AlertTriangle, BookOpen, X, Plus } from 'lucide-react';
-
-/**
- * Theology Traditions supported by the platform.
- */
-const THEOLOGY_TRADITIONS = [
-  'Non-denominational evangelical',
-  'Reformed Baptist',
-  'Southern Baptist',
-  'Presbyterian (PCA)',
-  'Presbyterian (PCUSA)',
-  'Anglican/Episcopal',
-  'Lutheran (LCMS)',
-  'Lutheran (ELCA)',
-  'Methodist',
-  'Pentecostal/Charismatic',
-  'Church of Christ',
-  'Catholic',
-  'Orthodox',
-  'Other',
-] as const;
+import {
+  THEOLOGY_TRADITION_OPTIONS,
+  type TheologyTradition,
+  type BibleTranslation,
+  type TheologySensitivity,
+} from '@elder-first/types';
 
 const BIBLE_TRANSLATIONS = [
-  'ESV', 'NIV', 'CSB', 'NASB', 'KJV', 'NKJV', 'NLT', 'RSV', 'NRSV', 'MSG',
+  'ESV', 'NIV', 'CSB', 'NASB', 'KJV', 'NKJV', 'NLT', 'MSG', 'Other',
 ] as const;
 
 const SERMON_STYLES = [
@@ -43,18 +29,21 @@ const SERMON_STYLES = [
 const SENSITIVITY_LEVELS = [
   { value: 'conservative', label: 'Conservative', description: 'Very cautious with sensitive topics' },
   { value: 'moderate', label: 'Moderate', description: 'Balanced approach with care' },
-  { value: 'broad', label: 'Broad', description: 'More latitude for mature discussion' },
+  { value: 'progressive', label: 'Progressive', description: 'More latitude for mature discussion' },
 ] as const;
 
 export default function TheologySettingsPage() {
+  // Track the canonical stored value for tradition
   const [formData, setFormData] = useState({
-    tradition: 'Non-denominational evangelical',
+    tradition: 'Non-denominational evangelical' as TheologyTradition,
     bibleTranslation: 'ESV',
     sermonStyle: 'expository',
     sensitivity: 'moderate',
     restrictedTopics: [] as string[],
     preferredTone: 'warm and pastoral',
   });
+  // Track the selected UI label separately (for display only)
+  const [selectedTraditionLabel, setSelectedTraditionLabel] = useState('Non-denominational evangelical');
   const [newTopic, setNewTopic] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -75,17 +64,26 @@ export default function TheologySettingsPage() {
     },
   });
 
+  // Find the first matching label for a stored canonical value
+  const findLabelForValue = (value: string): string => {
+    const option = THEOLOGY_TRADITION_OPTIONS.find(opt => opt.value === value);
+    return option?.label ?? value;
+  };
+
   // Populate form when data loads
   useEffect(() => {
     if (theologyProfile) {
+      const canonicalTradition = theologyProfile.tradition as TheologyTradition;
       setFormData({
-        tradition: theologyProfile.tradition,
+        tradition: canonicalTradition,
         bibleTranslation: theologyProfile.bibleTranslation,
         sermonStyle: theologyProfile.sermonStyle,
         sensitivity: theologyProfile.sensitivity,
         restrictedTopics: theologyProfile.restrictedTopics || [],
         preferredTone: theologyProfile.preferredTone,
       });
+      // Set the display label based on the stored value
+      setSelectedTraditionLabel(findLabelForValue(canonicalTradition));
     }
   }, [theologyProfile]);
 
@@ -130,13 +128,12 @@ export default function TheologySettingsPage() {
     setError('');
     setSuccess('');
 
-    // Cast to any to allow sending frontend values that may be broader than API type
-    // The API will validate and reject invalid values
+    // formData.tradition now contains canonical values from THEOLOGICAL_TRADITIONS
     updateTheology.mutate({
-      tradition: formData.tradition as any,
-      bibleTranslation: formData.bibleTranslation as any,
+      tradition: formData.tradition,
+      bibleTranslation: formData.bibleTranslation as BibleTranslation,
       sermonStyle: formData.sermonStyle as 'expository' | 'topical' | 'textual' | 'narrative',
-      sensitivity: formData.sensitivity as any,
+      sensitivity: formData.sensitivity as TheologySensitivity,
       restrictedTopics: formData.restrictedTopics,
       preferredTone: formData.preferredTone,
     });
@@ -239,13 +236,20 @@ export default function TheologySettingsPage() {
                   Theological Tradition
                 </label>
                 <select
-                  value={formData.tradition}
-                  onChange={(e) => handleChange('tradition', e.target.value)}
+                  value={selectedTraditionLabel}
+                  onChange={(e) => {
+                    const selectedLabel = e.target.value;
+                    const option = THEOLOGY_TRADITION_OPTIONS.find(opt => opt.label === selectedLabel);
+                    if (option) {
+                      setSelectedTraditionLabel(selectedLabel);
+                      handleChange('tradition', option.value);
+                    }
+                  }}
                   className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
-                  {THEOLOGY_TRADITIONS.map((tradition) => (
-                    <option key={tradition} value={tradition}>
-                      {tradition}
+                  {THEOLOGY_TRADITION_OPTIONS.map((option) => (
+                    <option key={option.label} value={option.label}>
+                      {option.label}
                     </option>
                   ))}
                 </select>

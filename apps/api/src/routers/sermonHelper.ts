@@ -22,12 +22,16 @@ import {
   SermonHelperSuggestionsSchema,
   SermonPlanInputSchema,
   SermonElementSchema,
+  SermonStyleProfileSchema,
+  SermonStyleProfileLabels,
   type TheologyProfile,
   type SermonHelperSuggestions,
   type SermonPlan,
   type SermonPlanDraft,
   type SermonElement,
   type SermonTemplate,
+  type SermonStyleProfile,
+  type SermonDraft,
 } from '@elder-first/types';
 
 // ============================================================================
@@ -190,6 +194,22 @@ Output format:
 /**
  * Build the user prompt for sermon suggestions.
  */
+/**
+ * Get style-specific guidance for illustrations based on the sermon style profile.
+ */
+function getIllustrationStyleGuidance(styleProfile: SermonStyleProfile | null | undefined): string {
+  switch (styleProfile) {
+    case 'story_first_3_point':
+      return 'Since this is a story-first style, prioritize narrative illustrations and personal stories that connect emotionally. Lead with the story before the principle.';
+    case 'expository_verse_by_verse':
+      return 'Since this is an expository style, focus on illustrations that illuminate the text\'s original context, historical background, or word meanings. Keep illustrations brief and text-focused.';
+    case 'topical_teaching':
+      return 'Since this is a topical style, use illustrations that relate to contemporary life situations and practical application of the topic being taught.';
+    default:
+      return 'Provide versatile illustrations that can work with various preaching styles.';
+  }
+}
+
 function buildUserPrompt(
   theme: string,
   sermon: {
@@ -199,12 +219,19 @@ function buildUserPrompt(
     sermonDate: string | null;
     seriesTitle: string | null;
   },
-  notes?: string
+  notes?: string,
+  styleProfile?: SermonStyleProfile | null
 ): string {
   let prompt = `Generate sermon preparation suggestions for this sermon.
 
 Sermon context:
 - Theme or big idea: ${theme}`;
+
+  // Add style profile hint if present
+  if (styleProfile) {
+    const styleLabel = SermonStyleProfileLabels[styleProfile];
+    prompt += `\n- Preferred sermon style: ${styleLabel}`;
+  }
 
   if (sermon.primaryScripture) {
     prompt += `\n- Scripture already chosen: ${sermon.primaryScripture}`;
@@ -225,6 +252,9 @@ Sermon context:
     prompt += `\n- Additional notes from pastor: ${notes}`;
   }
 
+  // Add illustration style guidance
+  const illustrationGuidance = getIllustrationStyleGuidance(styleProfile);
+
   prompt += `
 
 Return ONLY a single JSON object with this exact structure:
@@ -242,6 +272,9 @@ Return ONLY a single JSON object with this exact structure:
   ],
   "hymnThemes": [
     { "theme": "grace | cross | resurrection | mission | etc.", "reason": "Why this fits (max 20 words)" }
+  ],
+  "illustrationSuggestions": [
+    { "id": "unique-id-1", "title": "Short descriptive title (max 8 words)", "summary": "2-4 sentence story outline that illustrates the point", "forSection": "introduction | point1 | point2 | point3 | application | null" }
   ]
 }
 
@@ -249,6 +282,12 @@ Return ONLY a single JSON object with this exact structure:
 - Include 3-5 outline elements (mix of sections and points)
 - Include 2-4 application ideas for different audiences
 - Include 2-3 hymn themes
+- Include 2-4 illustration suggestions that connect to the sermon's theme and scripture
+  - ${illustrationGuidance}
+  - Each illustration should have a unique id (like "illus-1", "illus-2", etc.)
+  - The forSection field indicates where in the sermon the illustration fits best (or null if general)
+  - Keep illustrations pastoral, non-political, and appropriate for a church setting
+  - Avoid divisive cultural topics, partisan content, or controversial current events
 - Do not add extra fields
 - Do not include markdown fences or explanation`;
 
@@ -314,6 +353,7 @@ function getEmptyFallback(): SermonHelperSuggestions {
     outline: [],
     applicationIdeas: [],
     hymnThemes: [],
+    illustrationSuggestions: [],
   };
 }
 
@@ -440,15 +480,191 @@ function filterPoliticalContent(
     return !hasPolitical;
   });
 
+  // Filter illustration suggestions
+  const illustrationSuggestions = (suggestions.illustrationSuggestions ?? []).filter(item => {
+    const hasPolitical = containsPoliticalContent(item.title) ||
+      containsPoliticalContent(item.summary);
+    if (hasPolitical) detected = true;
+    return !hasPolitical;
+  });
+
   return {
     filtered: {
       scriptureSuggestions,
       outline,
       applicationIdeas,
       hymnThemes,
+      illustrationSuggestions,
     },
     detected,
   };
+}
+
+// ============================================================================
+// DRAFT GENERATION (Phase 8)
+// ============================================================================
+
+/**
+ * Build the user prompt for generating a preaching draft from a SermonPlan.
+ * Respects the style profile for oral delivery guidance.
+ */
+function buildDraftPrompt(
+  plan: {
+    title: string;
+    bigIdea: string;
+    primaryText: string;
+    supportingTexts: string[];
+    elements: SermonElement[];
+    styleProfile: SermonStyleProfile | null;
+  },
+  theologyProfile: TheologyProfile
+): string {
+  // Build elements description
+  const elementsDescription = plan.elements.map((el, idx) => {
+    switch (el.type) {
+      case 'section':
+        return `${idx + 1}. [SECTION] ${el.title}`;
+      case 'point':
+        return `${idx + 1}. [POINT] ${el.text}`;
+      case 'scripture':
+        return `${idx + 1}. [SCRIPTURE] ${el.reference}${el.note ? ` – ${el.note}` : ''}`;
+      case 'hymn':
+        return `${idx + 1}. [HYMN] ${el.title}${el.note ? ` – ${el.note}` : ''}`;
+      case 'illustration':
+        return `${idx + 1}. [ILLUSTRATION] ${el.title}${el.note ? ` – ${el.note}` : ''}`;
+      case 'note':
+        return `${idx + 1}. [NOTE] ${el.text}`;
+      default:
+        return `${idx + 1}. [UNKNOWN]`;
+    }
+  }).join('\n');
+
+  // Style-specific guidance
+  let styleGuidance = '';
+  switch (plan.styleProfile) {
+    case 'story_first_3_point':
+      styleGuidance = `
+Style: Story-First 3-Point
+- Lead with engaging stories and illustrations
+- Structure around three memorable takeaways
+- Use narrative hooks to transition between points
+- Emphasize emotional connection before doctrine
+- Include personal anecdotes where appropriate`;
+      break;
+    case 'expository_verse_by_verse':
+      styleGuidance = `
+Style: Expository Verse-by-Verse
+- Walk through the text systematically
+- Explain original language insights where helpful
+- Focus on what the text says, means, and applies
+- Keep illustrations brief and text-focused
+- Prioritize doctrinal accuracy and textual fidelity`;
+      break;
+    case 'topical_teaching':
+      styleGuidance = `
+Style: Topical Teaching
+- Organize around the central topic/theme
+- Use multiple scripture passages to support points
+- Connect to contemporary life situations
+- Balance teaching with practical application
+- Maintain logical flow through sub-topics`;
+      break;
+    default:
+      styleGuidance = `
+Style: General
+- Balance exposition with application
+- Include appropriate illustrations
+- Maintain clear structure
+- Connect scripture to life`;
+  }
+
+  const supportingTextsStr = plan.supportingTexts.length > 0
+    ? plan.supportingTexts.join(', ')
+    : 'None specified';
+
+  return `Generate a complete preaching manuscript draft based on this sermon plan.
+
+=== SERMON PLAN ===
+Title: ${plan.title}
+Big Idea: ${plan.bigIdea}
+Primary Scripture: ${plan.primaryText}
+Supporting Texts: ${supportingTextsStr}
+
+Outline Elements:
+${elementsDescription}
+
+=== STYLE GUIDANCE ===${styleGuidance}
+
+=== THEOLOGY CONTEXT ===
+Tradition: ${theologyProfile.tradition}
+Bible Translation: ${theologyProfile.bibleTranslation}
+Tone: ${theologyProfile.preferredTone}
+
+=== INSTRUCTIONS ===
+1. Write a complete preaching manuscript in markdown format
+2. This is for ORAL DELIVERY - write as you would speak from a pulpit
+3. Include natural transitions between sections
+4. Expand each outline point with appropriate depth
+5. Include scripture references but NOT full verse text (pastor has their Bible)
+6. Expand illustration placeholders with brief story summaries
+7. Include application points throughout
+8. End with a clear call to action or closing prayer prompt
+9. Use ## for main sections and ### for sub-points
+10. Keep paragraphs short for easy reading while preaching
+11. Total length: approximately 2,000-3,500 words (15-25 minute sermon)
+
+Return ONLY the markdown manuscript text. No JSON, no code fences, no meta-commentary.`;
+}
+
+/**
+ * Parse the draft generation response.
+ * Just returns the raw markdown text if valid.
+ */
+function parseDraftResponse(rawResponse: string): { markdown: string; valid: boolean } {
+  let cleaned = rawResponse.trim();
+
+  // Strip markdown code fences if AI wrapped the response
+  if (cleaned.startsWith('```markdown')) {
+    cleaned = cleaned.slice(11);
+  } else if (cleaned.startsWith('```md')) {
+    cleaned = cleaned.slice(5);
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.slice(3);
+  }
+  if (cleaned.endsWith('```')) {
+    cleaned = cleaned.slice(0, -3);
+  }
+  cleaned = cleaned.trim();
+
+  // Basic validation - should have some content
+  if (cleaned.length < 200) {
+    return { markdown: '', valid: false };
+  }
+
+  return { markdown: cleaned, valid: true };
+}
+
+/**
+ * Filter political content from the generated draft.
+ * Returns filtered content and detection flag.
+ */
+function filterPoliticalContentFromDraft(
+  markdown: string
+): { filtered: string; detected: boolean } {
+  let detected = false;
+  let filtered = markdown;
+
+  // Check each political keyword
+  for (const keyword of POLITICAL_KEYWORDS) {
+    const regex = new RegExp(keyword, 'gi');
+    if (regex.test(filtered)) {
+      detected = true;
+      // Replace with a placeholder that won't disrupt reading
+      filtered = filtered.replace(regex, '[content filtered]');
+    }
+  }
+
+  return { filtered, detected };
 }
 
 // ============================================================================
@@ -609,6 +825,16 @@ export const sermonHelperRouter = router({
 
       const sermon = sermonResult.rows[0];
 
+      // 3b. Fetch sermon plan's style profile (if exists)
+      const planResult = await queryWithTenant<{
+        style_profile: SermonStyleProfile | null;
+      }>(
+        tenantId,
+        `SELECT style_profile FROM sermon_plans WHERE sermon_id = $1 AND deleted_at IS NULL`,
+        [sermonId]
+      );
+      const styleProfile = planResult.rows[0]?.style_profile ?? null;
+
       // 4. Fetch org branding with theology profile
       const branding = await getOrgBranding(tenantId);
       const churchName = branding.churchName || branding.legalName;
@@ -662,7 +888,8 @@ export const sermonHelperRouter = router({
           sermonDate: sermon.sermon_date,
           seriesTitle: sermon.series_title,
         },
-        notes
+        notes,
+        styleProfile
       );
 
       // 7. Call OpenAI (server-side only)
@@ -758,6 +985,7 @@ export const sermonHelperRouter = router({
         outlineItems: suggestions.outline?.length ?? 0,
         applications: suggestions.applicationIdeas?.length ?? 0,
         hymnThemes: suggestions.hymnThemes?.length ?? 0,
+        illustrations: suggestions.illustrationSuggestions?.length ?? 0,
       });
 
       // 11. Return response
@@ -878,6 +1106,7 @@ export const sermonHelperRouter = router({
         tags: string[] | null;
         notes: string | null;
         template_id: string | null;
+        style_profile: SermonStyleProfile | null;
         created_at: Date;
         updated_at: Date;
       }>(
@@ -902,6 +1131,7 @@ export const sermonHelperRouter = router({
         tags: row.tags || [],
         notes: row.notes,
         templateId: row.template_id,
+        styleProfile: row.style_profile,
         createdAt: row.created_at.toISOString(),
         updatedAt: row.updated_at.toISOString(),
       } as SermonPlan;
@@ -953,8 +1183,9 @@ export const sermonHelperRouter = router({
             tags = $6,
             notes = $7,
             template_id = $8,
+            style_profile = $9,
             updated_at = NOW()
-          WHERE id = $9`,
+          WHERE id = $10`,
           [
             input.title,
             input.bigIdea,
@@ -964,6 +1195,7 @@ export const sermonHelperRouter = router({
             input.tags,
             input.notes || null,
             input.templateId || null,
+            input.styleProfile || null,
             planId,
           ]
         );
@@ -973,8 +1205,8 @@ export const sermonHelperRouter = router({
           tenantId,
           `INSERT INTO sermon_plan (
             tenant_id, sermon_id, title, big_idea, primary_text,
-            supporting_texts, elements, tags, notes, template_id
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            supporting_texts, elements, tags, notes, template_id, style_profile
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           RETURNING id`,
           [
             tenantId,
@@ -987,6 +1219,7 @@ export const sermonHelperRouter = router({
             input.tags,
             input.notes || null,
             input.templateId || null,
+            input.styleProfile || null,
           ]
         );
         planId = insertResult.rows[0].id;
@@ -1006,6 +1239,7 @@ export const sermonHelperRouter = router({
         tags: string[] | null;
         notes: string | null;
         template_id: string | null;
+        style_profile: SermonStyleProfile | null;
         created_at: Date;
         updated_at: Date;
       }>(
@@ -1026,6 +1260,7 @@ export const sermonHelperRouter = router({
         tags: row.tags || [],
         notes: row.notes,
         templateId: row.template_id,
+        styleProfile: row.style_profile,
         createdAt: row.created_at.toISOString(),
         updatedAt: row.updated_at.toISOString(),
       } as SermonPlan;
@@ -1048,10 +1283,11 @@ export const sermonHelperRouter = router({
         default_title: string | null;
         default_primary_text: string | null;
         tags: string[] | null;
+        style_profile: SermonStyleProfile | null;
         created_at: Date;
       }>(
         tenantId,
-        `SELECT id, name, default_title, default_primary_text, tags, created_at
+        `SELECT id, name, default_title, default_primary_text, tags, style_profile, created_at
          FROM sermon_template
          ORDER BY created_at DESC`
       );
@@ -1062,6 +1298,7 @@ export const sermonHelperRouter = router({
         defaultTitle: row.default_title || '',
         defaultPrimaryText: row.default_primary_text || '',
         tags: row.tags || [],
+        styleProfile: row.style_profile,
         createdAt: row.created_at.toISOString(),
       }));
     }),
@@ -1084,6 +1321,7 @@ export const sermonHelperRouter = router({
         default_supporting_texts: string[] | null;
         structure: SermonElement[];
         tags: string[] | null;
+        style_profile: SermonStyleProfile | null;
         created_at: Date;
         updated_at: Date;
       }>(
@@ -1110,6 +1348,7 @@ export const sermonHelperRouter = router({
         defaultSupportingTexts: row.default_supporting_texts || [],
         structure: row.structure || [],
         tags: row.tags || [],
+        styleProfile: row.style_profile,
         createdAt: row.created_at.toISOString(),
         updatedAt: row.updated_at.toISOString(),
       } as SermonTemplate;
@@ -1124,11 +1363,12 @@ export const sermonHelperRouter = router({
         sermonId: z.string().uuid(),
         name: z.string().min(1).max(200),
         tags: z.array(z.string()).default([]),
+        styleProfile: SermonStyleProfileSchema.nullish(),
       })
     )
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.tenantId!;
-      const { sermonId, name, tags } = input;
+      const { sermonId, name, tags, styleProfile } = input;
 
       // Fetch the sermon plan
       const planResult = await queryWithTenant<{
@@ -1138,9 +1378,10 @@ export const sermonHelperRouter = router({
         supporting_texts: string[] | null;
         elements: SermonElement[];
         tags: string[] | null;
+        style_profile: SermonStyleProfile | null;
       }>(
         tenantId,
-        `SELECT title, big_idea, primary_text, supporting_texts, elements, tags
+        `SELECT title, big_idea, primary_text, supporting_texts, elements, tags, style_profile
          FROM sermon_plan WHERE sermon_id = $1`,
         [sermonId]
       );
@@ -1154,13 +1395,16 @@ export const sermonHelperRouter = router({
 
       const plan = planResult.rows[0];
 
+      // Use provided styleProfile if set, otherwise inherit from plan
+      const effectiveStyleProfile = styleProfile !== undefined ? styleProfile : plan.style_profile;
+
       // Create the template
       const insertResult = await queryWithTenant<{ id: string }>(
         tenantId,
         `INSERT INTO sermon_template (
           tenant_id, name, default_title, default_big_idea, default_primary_text,
-          default_supporting_texts, structure, tags
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          default_supporting_texts, structure, tags, style_profile
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id`,
         [
           tenantId,
@@ -1171,6 +1415,7 @@ export const sermonHelperRouter = router({
           plan.supporting_texts || [],
           JSON.stringify(plan.elements || []),
           tags.length > 0 ? tags : (plan.tags || []),
+          effectiveStyleProfile || null,
         ]
       );
 
@@ -1180,6 +1425,7 @@ export const sermonHelperRouter = router({
         sermonId,
         templateId,
         name,
+        styleProfile: effectiveStyleProfile,
         tenantId,
       });
 
@@ -1194,6 +1440,7 @@ export const sermonHelperRouter = router({
         default_supporting_texts: string[] | null;
         structure: SermonElement[];
         tags: string[] | null;
+        style_profile: SermonStyleProfile | null;
         created_at: Date;
         updated_at: Date;
       }>(
@@ -1213,6 +1460,7 @@ export const sermonHelperRouter = router({
         defaultSupportingTexts: row.default_supporting_texts || [],
         structure: row.structure || [],
         tags: row.tags || [],
+        styleProfile: row.style_profile,
         createdAt: row.created_at.toISOString(),
         updatedAt: row.updated_at.toISOString(),
       } as SermonTemplate;
@@ -1455,6 +1703,264 @@ Return ONLY a JSON object with this structure:
           tokensUsed: usage ? usage.prompt_tokens + usage.completion_tokens : undefined,
           model: MODEL,
           extractedElementsCount: validated.data.elements.length,
+        },
+      };
+    }),
+
+  // ============================================================================
+  // PREACHING DRAFT GENERATION (Phase 8)
+  // ============================================================================
+
+  /**
+   * Generate a preaching draft from an existing SermonPlan.
+   *
+   * This endpoint:
+   * 1. Fetches the sermon and its plan
+   * 2. Applies theology guardrails (restricted topic check on plan content)
+   * 3. Generates a markdown manuscript using AI
+   * 4. Filters political content from the result
+   * 5. Returns an ephemeral SermonDraft (not persisted)
+   *
+   * The draft is optimized for oral delivery and respects the plan's styleProfile.
+   */
+  generateDraftFromPlan: editorProcedure
+    .input(z.object({ sermonId: z.string().uuid() }))
+    .mutation(async ({ input, ctx }) => {
+      // 1. Verify AI is configured
+      const apiKey = await assertAiConfigured();
+
+      // 2. Check tenant AI quota
+      await ensureAiQuotaAvailable(ctx);
+
+      const tenantId = ctx.tenantId!;
+      const { sermonId } = input;
+
+      logger.info('[SermonHelper] Draft generation request', { sermonId, tenantId });
+
+      // 3. Fetch sermon data
+      const sermonResult = await queryWithTenant<{
+        id: string;
+        title: string;
+        primary_scripture: string | null;
+      }>(
+        tenantId,
+        `SELECT id, title, primary_scripture FROM sermon WHERE id = $1 AND deleted_at IS NULL`,
+        [sermonId]
+      );
+
+      if (sermonResult.rows.length === 0) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Sermon not found',
+        });
+      }
+
+      // 4. Fetch the sermon plan
+      const planResult = await queryWithTenant<{
+        id: string;
+        title: string;
+        big_idea: string | null;
+        primary_text: string | null;
+        supporting_texts: string[] | null;
+        elements: SermonElement[];
+        style_profile: SermonStyleProfile | null;
+      }>(
+        tenantId,
+        `SELECT id, title, big_idea, primary_text, supporting_texts, elements, style_profile
+         FROM sermon_plan WHERE sermon_id = $1`,
+        [sermonId]
+      );
+
+      if (planResult.rows.length === 0) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'No sermon plan found. Please create a plan first before generating a draft.',
+        });
+      }
+
+      const planRow = planResult.rows[0];
+      const plan = {
+        title: planRow.title,
+        bigIdea: planRow.big_idea || '',
+        primaryText: planRow.primary_text || '',
+        supportingTexts: planRow.supporting_texts || [],
+        elements: planRow.elements || [],
+        styleProfile: planRow.style_profile,
+      };
+
+      // 5. Fetch org branding with theology profile
+      const branding = await getOrgBranding(tenantId);
+      const churchName = branding.churchName || branding.legalName;
+      const theologyProfile = branding.theologyProfile;
+
+      // 6. GUARDRAIL: Check for restricted topics in plan content
+      // Build content string from plan fields for topic detection
+      const planContentForTopicCheck = [
+        plan.title,
+        plan.bigIdea,
+        plan.primaryText,
+        ...plan.supportingTexts,
+        ...plan.elements.map(el => {
+          switch (el.type) {
+            case 'section': return el.title;
+            case 'point': return el.text;
+            case 'note': return el.text;
+            case 'scripture': return `${el.reference} ${el.note || ''}`;
+            case 'hymn': return `${el.title} ${el.note || ''}`;
+            case 'illustration': return `${el.title} ${el.note || ''}`;
+            default: return '';
+          }
+        }),
+      ].filter(Boolean).join(' ');
+
+      const matchedRestrictedTopic = checkRestrictedTopics(
+        planContentForTopicCheck,
+        theologyProfile.restrictedTopics
+      );
+
+      if (matchedRestrictedTopic) {
+        logger.info('[SermonHelper] Guardrail: Restricted topic in plan - draft generation skipped', {
+          event: 'sermonHelper.draftRestrictedTopic',
+          tenantId,
+          sermonId,
+        });
+
+        // Log as usage event with zero tokens
+        await logAiUsage(
+          tenantId,
+          'sermon.generateDraft',
+          'none',
+          0,
+          0,
+          { sermonId, restrictedTopicTriggered: true }
+        );
+
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Draft generation is disabled for sermons containing restricted topics. Please handle this content personally.',
+        });
+      }
+
+      // 7. Build prompts
+      const systemPrompt = buildTheologyAwareSystemPrompt(churchName, theologyProfile);
+      const userPrompt = buildDraftPrompt(plan, theologyProfile);
+
+      // 8. Call OpenAI (using gpt-4o for better long-form content)
+      const MODEL = 'gpt-4o-mini';
+      let rawResponse: string;
+      let usage: OpenAIUsage | null = null;
+
+      try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: MODEL,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+            temperature: 0.7,
+            max_tokens: 4000,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          logger.error('[SermonHelper] OpenAI API error during draft generation', {
+            status: response.status,
+            error: errorData,
+          });
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'AI service temporarily unavailable. Please try again.',
+          });
+        }
+
+        const data = await response.json() as {
+          choices?: { message?: { content?: string } }[];
+          usage?: OpenAIUsage;
+        };
+
+        rawResponse = data.choices?.[0]?.message?.content?.trim() || '';
+        usage = data.usage || null;
+
+        if (!rawResponse) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'AI service returned empty response.',
+          });
+        }
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        logger.error('[SermonHelper] OpenAI call failed during draft generation', { error });
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to generate draft. Please try again.',
+        });
+      }
+
+      // 9. Parse and validate response
+      const { markdown, valid } = parseDraftResponse(rawResponse);
+
+      if (!valid) {
+        logger.error('[SermonHelper] Draft response validation failed - too short');
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'AI generated incomplete draft. Please try again.',
+        });
+      }
+
+      // 10. GUARDRAIL: Filter political content
+      const { filtered: filteredMarkdown, detected: politicalContentDetected } =
+        filterPoliticalContentFromDraft(markdown);
+
+      if (politicalContentDetected) {
+        logger.info('[SermonHelper] Guardrail: Political content filtered from draft', {
+          event: 'sermonHelper.draftPoliticalFiltered',
+          tenantId,
+          sermonId,
+        });
+      }
+
+      // 11. Log usage
+      if (usage) {
+        await logAiUsage(
+          tenantId,
+          'sermon.generateDraft',
+          MODEL,
+          usage.prompt_tokens,
+          usage.completion_tokens,
+          { sermonId, styleProfile: plan.styleProfile, politicalContentDetected }
+        );
+      }
+
+      logger.info('[SermonHelper] Draft generated successfully', {
+        sermonId,
+        styleProfile: plan.styleProfile,
+        markdownLength: filteredMarkdown.length,
+        tokensUsed: usage ? usage.prompt_tokens + usage.completion_tokens : 0,
+        politicalContentDetected,
+      });
+
+      // 12. Build and return SermonDraft
+      const draft: SermonDraft = {
+        sermonId,
+        styleProfile: plan.styleProfile,
+        theologyTradition: theologyProfile.tradition,
+        createdAt: new Date().toISOString(),
+        contentMarkdown: filteredMarkdown,
+      };
+
+      return {
+        draft,
+        meta: {
+          tokensUsed: usage ? usage.prompt_tokens + usage.completion_tokens : undefined,
+          model: MODEL,
+          politicalContentDetected: politicalContentDetected || undefined,
         },
       };
     }),

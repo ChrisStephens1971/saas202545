@@ -1335,3 +1335,9 @@ npm run db:seed
 **Template Version:** 1.0 (Azure)
 **Last Updated:** 2025-11-14
 **Project Phase:** Planning
+
+## Reporting Documentation
+
+When adding or modifying reporting endpoints or pages:
+1. Update `docs/reporting/REPORTING-INVENTORY.md` with the new endpoint/page
+2. If implementing a gap, update `docs/reporting/GAP-ANALYSIS.md`

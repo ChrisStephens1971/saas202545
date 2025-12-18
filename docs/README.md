@@ -293,6 +293,10 @@ Use conventional commits:
 - `sprints/` - Sprint planning
 - `technical/` - Technical decisions
 
+### Operations & Environments
+- [Environment Policy](ENVIRONMENT-POLICY.md) - Environment model, access rules, deployment flow
+- [Environment URLs](ops/ENVIRONMENT-URLS.md) - URL reference for all environments
+
 ---
 
 ## Support

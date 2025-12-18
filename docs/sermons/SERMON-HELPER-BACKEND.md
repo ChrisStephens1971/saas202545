@@ -1,7 +1,7 @@
 # Sermon Helper Backend Documentation
 
-**Date:** 2025-12-03
-**Status:** Phase 1 Complete
+**Date:** 2025-12-05
+**Status:** Phase 8 Complete (Generate Preaching Draft)
 **Location:** `apps/api/src/routers/sermonHelper.ts`
 
 ## Overview
@@ -191,6 +191,12 @@ Returns the theology profile merged with safe defaults if fields are null.
       theme: string;      // e.g., "grace", "cross", "resurrection"
       reason: string;     // max 20 words
     }>;
+    illustrationSuggestions?: Array<{  // Phase 7 addition
+      id: string;         // unique identifier
+      title: string;      // illustration title
+      summary: string;    // brief summary of the illustration
+      forSection?: string | null;  // target section (e.g., "Introduction")
+    }>;
   };
   meta: {
     fallback: boolean;              // true if JSON parsing failed
@@ -210,7 +216,67 @@ Returns the theology profile merged with safe defaults if fields are null.
 
 ---
 
-### 4. `sermonHelper.searchHymns`
+### 4. `sermonHelper.generateDraftFromPlan` (Phase 8)
+
+**Access:** Editor role required (`editorProcedure`)
+
+**Description:** Generates a full preaching manuscript (markdown) from an existing SermonPlan. The draft is ephemeral (not stored in DB) and can be copied for use in the pastor's preferred word processor.
+
+**Input:**
+```typescript
+{
+  sermonId: string;   // UUID of sermon with existing SermonPlan
+}
+```
+
+**Returns:**
+```typescript
+{
+  draft: {
+    sermonId: string;            // Same as input
+    styleProfile: SermonStyleProfile | null;  // From plan or null
+    theologyTradition: string | null;         // From church profile
+    createdAt: string;           // ISO timestamp
+    contentMarkdown: string;     // Full manuscript in markdown
+  };
+  meta: {
+    tokensUsed: number;
+    model: string;               // "gpt-4o-mini"
+    politicalContentDetected?: boolean;  // true if content was filtered
+  };
+}
+```
+
+**Error Codes:**
+- `NOT_FOUND` - No sermon plan found for this sermon
+- `FORBIDDEN` - Restricted topic detected in plan content
+- `PRECONDITION_FAILED` - AI not configured or disabled
+- `INTERNAL_SERVER_ERROR` - OpenAI API error
+
+**Guardrails:**
+- Plan content is checked for restricted topics BEFORE calling OpenAI
+- Political content is filtered from generated manuscript
+- Theology profile shapes the AI prompt and tone
+- Style profile (story_first, expository, topical) tailors the manuscript structure
+
+**Prompt Construction:**
+The system prompt includes:
+1. Church name and theology profile
+2. Style-specific manuscript guidance:
+   - `story_first_3_point`: Lead with illustrations, emotional narrative flow
+   - `expository_verse_by_verse`: Text-focused, historical context emphasis
+   - `topical_teaching`: Contemporary applications, practical structure
+3. Bible translation preference
+4. Preferred tone (warm and pastoral, direct and challenging, etc.)
+
+**Response Validation:**
+- Markdown fences are stripped from response
+- Minimum length check (200 characters) to detect incomplete responses
+- Political keywords are replaced with `[content filtered]`
+
+---
+
+### 5. `sermonHelper.searchHymns`
 
 **Access:** All authenticated users (`protectedProcedure`)
 
@@ -293,6 +359,22 @@ And explicitly requests a JSON response with:
 - 3-5 outline elements
 - 2-4 application ideas
 - 2-3 hymn themes
+- 2-3 illustration suggestions (shaped by styleProfile)
+
+### Style-Aware Illustration Guidance (Phase 7)
+
+Location: `sermonHelper.ts:getIllustrationStyleGuidance()`
+
+The AI prompt includes tailored guidance for illustrations based on the sermon's `styleProfile`:
+
+| Style Profile | Illustration Guidance |
+|---------------|----------------------|
+| `story_first_3_point` | Prioritize narrative illustrations and personal stories that connect emotionally. Lead with the story before the principle. |
+| `expository_verse_by_verse` | Focus on illustrations that illuminate the text's original context, historical background, or word meanings. Keep illustrations brief and text-focused. |
+| `topical_teaching` | Use illustrations that relate to contemporary life situations and practical application of the topic being taught. |
+| (default/null) | Provide versatile illustrations that can work with various preaching styles. |
+
+The `styleProfile` is read from the sermon plan (if saved) and passed to the AI prompt builder, ensuring illustration suggestions match the preaching approach.
 
 ## JSON Response Parsing
 
@@ -313,6 +395,7 @@ Location: `sermonHelper.ts:257-313`
   outline: [],
   applicationIdeas: [],
   hymnThemes: [],
+  illustrationSuggestions: [],  // Phase 7 addition
 }
 ```
 
@@ -406,11 +489,29 @@ import {
   TheologySensitivity,
   SermonHelperSuggestionsSchema,
   SermonElementSchema,
+  IllustrationSuggestionSchema,  // Phase 7 addition
+  SermonDraftSchema,             // Phase 8 addition
   type TheologyProfile,
   type SermonHelperSuggestions,
   type SermonElement,
+  type IllustrationSuggestion,  // Phase 7 addition
+  type SermonDraft,             // Phase 8 addition
 } from '@elder-first/types';
 ```
+
+### SermonDraft Type (Phase 8)
+
+```typescript
+interface SermonDraft {
+  sermonId: string;
+  styleProfile?: SermonStyleProfile | null;
+  theologyTradition?: string | null;
+  createdAt: string;      // ISO 8601 timestamp
+  contentMarkdown: string;
+}
+```
+
+This type represents an ephemeral (non-persisted) preaching manuscript generated from a SermonPlan.
 
 ## Testing
 
@@ -423,6 +524,19 @@ Location: `apps/api/src/__tests__/sermonHelper.test.ts`
 - JSON response parsing (valid, fenced, malformed)
 - Guardrail enforcement
 - Fallback behavior
+- Illustration suggestions (Phase 7)
+  - Response parsing with illustrationSuggestions
+  - Style-aware illustration guidance
+  - Political content filtering for illustrations
+  - Empty fallback includes illustrations
+- Draft generation (Phase 8)
+  - buildDraftPrompt helper function
+  - parseDraftResponse with validation
+  - filterPoliticalContentFromDraft
+  - SermonDraft type structure
+  - Restricted topic check for plan content
+  - Meta response structure validation
+  - Integration flow tests
 
 ### Run Tests
 
@@ -430,6 +544,8 @@ Location: `apps/api/src/__tests__/sermonHelper.test.ts`
 cd apps/api
 npm test -- --testPathPattern=sermonHelper.test.ts
 ```
+
+**Phase 8 test count:** 21 tests for draft generation covering prompt building, response parsing, political filtering, and integration.
 
 ## Runtime Guardrails
 

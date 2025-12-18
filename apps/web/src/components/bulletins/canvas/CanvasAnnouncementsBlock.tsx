@@ -29,7 +29,10 @@ export function CanvasAnnouncementsBlock({ block }: CanvasBlockRendererProps) {
     priorityFilter,
   } = blockData;
 
-  const { data: announcementsData, isLoading } = trpc.announcements.listActive.useQuery();
+  const { data: announcementsData, isLoading } = trpc.announcements.listActive.useQuery(
+    undefined,
+    { staleTime: 30000 }
+  );
 
   if (isLoading) {
     return (

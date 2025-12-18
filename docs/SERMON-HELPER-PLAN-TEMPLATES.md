@@ -325,6 +325,94 @@ All tests use Jest and run in Node environment (no DOM required). Tests focus on
 
 AI calls are mocked in API tests - no real OpenAI requests are made during testing.
 
+## Sermon Style Profiles (Phase 6)
+
+Phase 6 introduces optional **Sermon Style Profiles** to categorize sermon structure and help the AI provide more relevant suggestions.
+
+### Style Profile Values
+
+| Value | Label | Description |
+|-------|-------|-------------|
+| `story_first_3_point` | Story-First 3-Point | Classic sermon structure with opening story/hook, three main points, and application |
+| `expository_verse_by_verse` | Expository Verse-by-Verse | Walk through a Scripture passage systematically, explaining each verse in context |
+| `topical_teaching` | Topical Teaching | Focus on a specific topic or doctrine, drawing from multiple Scripture passages |
+
+### Database Changes
+
+Migration file: `packages/database/migrations/038_add_style_profile_to_sermons.sql`
+
+Adds nullable `style_profile` column to both:
+- `sermon_plans` table
+- `sermon_templates` table
+
+With CHECK constraint limiting values to the three valid profiles.
+
+### API Changes
+
+**Sermon Plans:**
+```typescript
+// getPlan now returns styleProfile
+sermonHelper.getPlan({ sermonId: string })
+// Returns: { ..., styleProfile?: 'story_first_3_point' | 'expository_verse_by_verse' | 'topical_teaching' }
+
+// savePlan accepts optional styleProfile
+sermonHelper.savePlan({
+  ...,
+  styleProfile?: 'story_first_3_point' | 'expository_verse_by_verse' | 'topical_teaching'
+})
+```
+
+**Sermon Templates:**
+```typescript
+// listTemplates includes styleProfile
+sermonHelper.listTemplates()
+// Returns templates with optional styleProfile field
+
+// createTemplateFromPlan accepts optional styleProfile
+sermonHelper.createTemplateFromPlan({
+  sermonId: string,
+  name: string,
+  tags: string[],
+  styleProfile?: 'story_first_3_point' | 'expository_verse_by_verse' | 'topical_teaching'
+})
+```
+
+**AI Suggestions:**
+When a sermon plan has a `styleProfile` set, the `getAISuggestions` endpoint automatically includes the style preference as a hint in the AI prompt. This helps the AI generate outline suggestions that match the pastor's preferred sermon structure.
+
+### UI Changes
+
+**SaveAsTemplateModal:**
+- New "Sermon Style" dropdown (optional)
+- Shows style description when a style is selected
+- Style is saved with the template
+
+**TemplateSelector:**
+- Templates now display their style profile as a colored badge
+- Search filters also match style profile labels
+- Style badge appears next to template name in purple
+
+### Type Definitions
+
+```typescript
+// New type
+type SermonStyleProfile =
+  | 'story_first_3_point'
+  | 'expository_verse_by_verse'
+  | 'topical_teaching';
+
+// Helper objects for UI
+SermonStyleProfileLabels: Record<SermonStyleProfile, string>
+SermonStyleProfileDescriptions: Record<SermonStyleProfile, string>
+```
+
+### Backward Compatibility
+
+All changes are backward compatible:
+- `styleProfile` is optional in all schemas (nullable in DB)
+- Existing plans and templates without styleProfile continue to work
+- AI suggestions work the same when styleProfile is not set
+
 ## Future Enhancements
 
 - Template sharing between tenants (community templates)
@@ -333,3 +421,4 @@ AI calls are mocked in API tests - no real OpenAI requests are made during testi
 - Collaborative editing
 - Export to various formats (PDF, Word, etc.)
 - Template analytics (usage tracking)
+- Additional sermon style profiles based on user feedback

@@ -1,0 +1,56 @@
+{
+  "$schema": "./registry.schema.json",
+  "version": "1.0.0",
+  "description": "Elder-First Template System Registry",
+  "generators": [
+    {
+      "id": "planner-module",
+      "label": "Planner Module",
+      "entry": "./planner/generator/index.ts",
+      "description": "Generates a planner module using @elder-first/planner-core. Creates types, item config, time utilities, and outline utilities for a new vertical.",
+      "category": "feature",
+      "params": {
+        "verticalName": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the vertical (e.g., 'meeting', 'event', 'production')"
+        },
+        "pathBase": {
+          "type": "string",
+          "required": true,
+          "description": "Base path where the planner folder will be created"
+        },
+        "typeName": {
+          "type": "string",
+          "required": false,
+          "description": "Pascal case name for types (auto-generated from verticalName if not provided)"
+        }
+      },
+      "outputs": [
+        "<pathBase>/<verticalName>/planner/types.ts",
+        "<pathBase>/<verticalName>/planner/itemTypeConfig.ts",
+        "<pathBase>/<verticalName>/planner/timeUtils.ts",
+        "<pathBase>/<verticalName>/planner/outlineUtils.ts",
+        "<pathBase>/<verticalName>/planner/index.ts"
+      ],
+      "dependencies": [
+        "@elder-first/planner-core",
+        "lucide-react"
+      ],
+      "docs": "./planner/README.md"
+    }
+  ],
+  "blueprints": [
+    {
+      "id": "planner",
+      "label": "Planner Pattern",
+      "path": "./planner",
+      "description": "Blueprint for creating planner-style applications (agendas, rundowns, schedules) with plan → sections → items hierarchy.",
+      "docs": "./planner/blueprint.md",
+      "examples": [
+        "./planner/examples/meeting-planner.md",
+        "./planner/examples/event-rundown.md"
+      ]
+    }
+  ]
+}

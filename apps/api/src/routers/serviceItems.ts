@@ -2,6 +2,7 @@ import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
 import { queryWithTenant, db, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
 
 const ServiceItemTypeSchema = z.enum([
   'Welcome',
@@ -540,7 +541,7 @@ export const serviceItemsRouter = router({
           issueDate: row.issue_date,
           serviceDate: row.issue_date, // Include both for compatibility
           status: row.status,
-          itemCount: parseInt(row.item_count, 10),
+          itemCount: pgCountToNumber(row.item_count),
         })),
       };
     }),

@@ -2,6 +2,7 @@ import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
 import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
 
 /** Database row type for attendance session with joined event/group */
 export interface AttendanceSessionRow {
@@ -115,7 +116,7 @@ export const attendanceRouter = router({
 
       return {
         sessions: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 

@@ -25,6 +25,8 @@ import { scriptureRouter } from './scripture';
 import { preachRouter } from './preach';
 import { adminAiUsageRouter } from './adminAiUsage';
 import { adminTenantPlanRouter } from './adminTenantPlan';
+import { userPreferencesRouter } from './userPreferences';
+import { servicePlansRouter } from './servicePlans';
 
 export const appRouter = router({
   health: healthRouter,
@@ -53,6 +55,8 @@ export const appRouter = router({
   preach: preachRouter,
   adminAiUsage: adminAiUsageRouter,
   adminTenantPlan: adminTenantPlanRouter,
+  userPreferences: userPreferencesRouter,
+  servicePlans: servicePlansRouter,
 });
 
 export type AppRouter = typeof appRouter;

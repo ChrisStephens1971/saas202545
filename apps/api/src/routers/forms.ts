@@ -2,6 +2,7 @@ import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
 import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
 
 /** Database row type for form */
 export interface FormRow {
@@ -95,7 +96,7 @@ export const formsRouter = router({
 
       return {
         forms: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 
@@ -366,7 +367,7 @@ export const formsRouter = router({
 
       return {
         submissions: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { DndContext, DragEndEvent, DragStartEvent, useDraggable, useDroppable, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { BulletinCanvasLayout, BulletinCanvasBlock, BulletinCanvasBlockType } from '@elder-first/types';
 import { BulletinCanvasPageView } from './BulletinCanvasPageView';
@@ -83,8 +83,15 @@ export function BulletinCanvasEditor({
     })
   );
 
-  const currentPage = layout.pages.find(p => p.pageNumber === currentPageNumber);
-  const selectedBlock = currentPage?.blocks.find(b => b.id === selectedBlockId);
+  // Memoized computed values (performance optimization)
+  const currentPage = useMemo(
+    () => layout.pages.find(p => p.pageNumber === currentPageNumber),
+    [layout.pages, currentPageNumber]
+  );
+  const selectedBlock = useMemo(
+    () => currentPage?.blocks.find(b => b.id === selectedBlockId),
+    [currentPage?.blocks, selectedBlockId]
+  );
 
   // Enhanced save with dirty state tracking
   const handleSave = async (isAutosave = false) => {
@@ -225,15 +232,16 @@ export function BulletinCanvasEditor({
     };
   }, []);
 
-  const handleBlockSelect = (blockId: string) => {
+  // Memoized handlers for child components (performance optimization)
+  const handleBlockSelect = useCallback((blockId: string) => {
     setSelectedBlockId(blockId);
-  };
+  }, []);
 
-  const handleCanvasClick = () => {
+  const handleCanvasClick = useCallback(() => {
     setSelectedBlockId(null);
-  };
+  }, []);
 
-  const handleBlockUpdate = (blockId: string, updates: Partial<BulletinCanvasBlock>) => {
+  const handleBlockUpdate = useCallback((blockId: string, updates: Partial<BulletinCanvasBlock>) => {
     if (isLocked) return; // Read-only when locked
     setLayout(prev => ({
       ...prev,
@@ -244,9 +252,9 @@ export function BulletinCanvasEditor({
         ),
       })),
     }));
-  };
+  }, [isLocked]);
 
-  const handleBlockDelete = (blockId: string) => {
+  const handleBlockDelete = useCallback((blockId: string) => {
     if (isLocked) return; // Read-only when locked
     setLayout(prev => ({
       ...prev,
@@ -256,10 +264,10 @@ export function BulletinCanvasEditor({
       })),
     }));
     setSelectedBlockId(null);
-  };
+  }, [isLocked]);
 
-  // Block duplication
-  const handleBlockDuplicate = (blockId: string) => {
+  // Block duplication (memoized for child components)
+  const handleBlockDuplicate = useCallback((blockId: string) => {
     if (isLocked) return; // Read-only when locked
     setLayout(prev => ({
       ...prev,
@@ -286,10 +294,10 @@ export function BulletinCanvasEditor({
         };
       }),
     }));
-  };
+  }, [isLocked]);
 
-  // Z-index controls
-  const handleBringToFront = (blockId: string) => {
+  // Z-index controls (memoized for child components)
+  const handleBringToFront = useCallback((blockId: string) => {
     if (isLocked) return; // Read-only when locked
     setLayout(prev => {
       const maxZIndex = Math.max(0, ...prev.pages.flatMap(p => p.blocks.map(b => b.zIndex)));
@@ -303,7 +311,7 @@ export function BulletinCanvasEditor({
         })),
       };
     });
-  };
+  }, [isLocked]);
 
   // Create test announcements block with specific rotation for drift testing
   const createTestAnnouncementsBlock = (rotation: number = 0) => {
@@ -337,7 +345,7 @@ export function BulletinCanvasEditor({
     console.log(`Test announcements block (${rotation}°) added and selected. Try resizing from bottom-right.`);
   };
 
-  const handleSendToBack = (blockId: string) => {
+  const handleSendToBack = useCallback((blockId: string) => {
     if (isLocked) return; // Read-only when locked
     setLayout(prev => {
       const minZIndex = Math.min(0, ...prev.pages.flatMap(p => p.blocks.map(b => b.zIndex)));
@@ -351,7 +359,7 @@ export function BulletinCanvasEditor({
         })),
       };
     });
-  };
+  }, [isLocked]);
 
   // Global editor actions
   const handleRefreshContent = () => {

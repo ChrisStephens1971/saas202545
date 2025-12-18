@@ -148,6 +148,24 @@ export default function SettingsPage() {
             </Card>
           </Link>
 
+          {/* Interface Settings */}
+          <Link href="/settings/interface">
+            <Card variant="elevated" className="hover:shadow-xl transition-shadow cursor-pointer h-full">
+              <CardHeader>
+                <div className="text-3xl mb-2">🖥️</div>
+                <CardTitle>Interface</CardTitle>
+                <CardDescription>
+                  Display mode and accessibility preferences
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-500">
+                  Choose between modern (compact) or accessible (elder-friendly) interface mode. Your preference is saved to your account.
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+
           {/* Placeholder for future settings sections */}
           <Card variant="outlined" className="h-full opacity-60">
             <CardHeader>

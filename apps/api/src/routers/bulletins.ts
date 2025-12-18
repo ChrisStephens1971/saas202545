@@ -1,41 +1,34 @@
-import { router, protectedProcedure, publicProcedure } from '../trpc';
+import { router, protectedProcedure, editorProcedure, publicProcedure } from '../trpc';
 import { z } from 'zod';
 import { db, queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
+import {
+  BulletinIssueRow,
+  ServiceItemRow,
+  mapBulletinToListItem,
+  mapBulletinToDetail,
+  mapBulletinToPublic,
+  mapBulletinToCreateResponse,
+  mapBulletinFromPrevious,
+  mapServiceItemToPublic,
+} from '../lib/mappers';
+import {
+  bulletinNotFound,
+  conflict,
+} from '../lib/errors';
 
 // Bulletin status enum
 const BulletinStatusSchema = z.enum(['draft', 'approved', 'built', 'locked']);
 
-interface BulletinIssue {
-  id: string;
-  tenant_id: string;
-  issue_date: Date;
-  status: 'draft' | 'approved' | 'built' | 'locked';
-  brand_pack_id: string | null;
-  pdf_url: string | null;
-  pdf_large_print_url: string | null;
-  slides_json: unknown | null;
-  loop_mp4_url: string | null;
-  email_html: string | null;
-  propresenter_bundle_url: string | null;
-  locked_at: Date | null;
-  locked_by: string | null;
-  reopened_at: Date | null;
-  reopened_by: string | null;
-  reopen_reason: string | null;
-  content_hash: string | null;
-  template_key: string | null;
-  design_options: Record<string, unknown> | null;
-  canvas_layout_json: Record<string, unknown> | null;
-  use_canvas_layout: boolean;
-  is_published: boolean;
-  is_public: boolean;
-  public_token: string | null;
-  published_at: Date | null;
-  created_at: Date;
-  updated_at: Date;
-  deleted_at: Date | null;
-}
+// Bulletin list filter enum
+// - 'active': Published/upcoming bulletins (approved, built, locked) - excludes drafts
+// - 'drafts': Only draft bulletins
+// - 'deleted': Only soft-deleted bulletins
+// - 'all': All bulletins including drafts (but not deleted unless explicitly using 'deleted')
+const BulletinFilterSchema = z.enum(['active', 'drafts', 'deleted', 'all']);
+
+// BulletinIssueRow is now imported from ../lib/mappers
 
 // Generator payload schema for storing/retrieving bulletin generator data
 const GeneratorPayloadSchema = z.object({
@@ -50,20 +43,59 @@ const GeneratorPayloadSchema = z.object({
 
 
 export const bulletinsRouter = router({
-  // List all bulletins for tenant
+  // List all bulletins for tenant with filter support
   list: protectedProcedure
     .input(
       z.object({
-        status: BulletinStatusSchema.optional(),
+        filter: BulletinFilterSchema.default('active'),
+        status: BulletinStatusSchema.optional(), // Legacy: specific status filter (overrides filter if provided)
         limit: z.number().min(1).max(100).default(50),
         offset: z.number().min(0).default(0),
       })
     )
     .query(async ({ input, ctx }) => {
-      const { status, limit, offset } = input;
+      const { filter, status, limit, offset } = input;
       const tenantId = ctx.tenantId!;
 
-      let queryText = `
+      // Build WHERE conditions based on filter type
+      // Note: 'deleted' filter shows soft-deleted items, others exclude them
+      // Soft-delete can be indicated by EITHER:
+      //   1. deleted_at IS NOT NULL (timestamp-based soft delete)
+      //   2. status = 'deleted' (enum-based soft delete)
+      let whereConditions: string;
+      const queryParams: QueryParam[] = [];
+
+      if (status) {
+        // Legacy behavior: specific status filter (always excludes deleted)
+        queryParams.push(status);
+        whereConditions = `deleted_at IS NULL AND status = $${queryParams.length}`;
+      } else {
+        // New filter-based behavior
+        switch (filter) {
+          case 'active':
+            // Show approved, built, locked (exclude drafts and all deleted)
+            whereConditions = `deleted_at IS NULL AND status IN ('approved', 'built', 'locked')`;
+            break;
+          case 'drafts':
+            // Show only drafts (not deleted by either mechanism)
+            whereConditions = `deleted_at IS NULL AND status = 'draft'`;
+            break;
+          case 'deleted':
+            // Show soft-deleted bulletins (deleted_at is now the canonical flag)
+            // CHECK constraint ensures deleted_at IS NOT NULL ⟺ status = 'deleted'
+            whereConditions = `deleted_at IS NOT NULL`;
+            break;
+          case 'all':
+            // Show all non-deleted bulletins (including drafts)
+            // deleted_at IS NULL is the canonical check for non-deleted records
+            whereConditions = `deleted_at IS NULL`;
+            break;
+          default:
+            whereConditions = `deleted_at IS NULL AND status IN ('approved', 'built', 'locked')`;
+        }
+      }
+
+      const queryText = `
         SELECT
           id,
           tenant_id,
@@ -74,49 +106,35 @@ export const bulletinsRouter = router({
           locked_at,
           locked_by,
           created_at,
-          updated_at
+          updated_at,
+          deleted_at
         FROM bulletin_issue
-        WHERE deleted_at IS NULL
+        WHERE ${whereConditions}
+        ORDER BY issue_date DESC
+        LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
       `;
-
-      const queryParams: QueryParam[] = [];
-
-      if (status) {
-        queryParams.push(status);
-        queryText += ` AND status = $${queryParams.length}`;
-      }
-
-      queryText += ` ORDER BY issue_date DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
       queryParams.push(limit, offset);
 
+      // Count query with same conditions
       const countQuery = `
         SELECT COUNT(*) as total
         FROM bulletin_issue
-        WHERE deleted_at IS NULL
-        ${status ? `AND status = $1` : ''}
+        WHERE ${whereConditions}
       `;
+      // Count query uses same params minus limit/offset
+      const countParams = queryParams.slice(0, -2);
 
       const [dataResult, countResult] = await Promise.all([
-        queryWithTenant<BulletinIssue>(tenantId, queryText, queryParams),
-        queryWithTenant<{ total: string }>(tenantId, countQuery, status ? [status] : []),
+        queryWithTenant<BulletinIssueRow>(tenantId, queryText, queryParams),
+        queryWithTenant<{ total: string }>(tenantId, countQuery, countParams),
       ]);
 
       return {
-        bulletins: dataResult.rows.map((row) => ({
-          id: row.id,
-          tenantId: row.tenant_id,
-          serviceDate: row.issue_date,
-          status: row.status,
-          brandPackId: row.brand_pack_id,
-          pdfUrl: row.pdf_url,
-          lockedAt: row.locked_at,
-          lockedBy: row.locked_by,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-        })),
-        total: parseInt(countResult.rows[0].total, 10),
+        bulletins: dataResult.rows.map(mapBulletinToListItem),
+        total: pgCountToNumber(countResult.rows[0].total),
         limit,
         offset,
+        filter,
       };
     }),
 
@@ -149,35 +167,13 @@ export const bulletinsRouter = router({
         WHERE id = $1 AND deleted_at IS NULL
       `;
 
-      const result = await queryWithTenant<BulletinIssue>(tenantId, queryText, [input.id]);
+      const result = await queryWithTenant<BulletinIssueRow>(tenantId, queryText, [input.id]);
 
       if (result.rows.length === 0) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Bulletin not found',
-        });
+        throw bulletinNotFound(input.id);
       }
 
-      const row = result.rows[0];
-      return {
-        id: row.id,
-        tenantId: row.tenant_id,
-        serviceDate: row.issue_date,
-        status: row.status,
-        brandPackId: row.brand_pack_id,
-        pdfUrl: row.pdf_url,
-        pdfLargePrintUrl: row.pdf_large_print_url,
-        slidesJson: row.slides_json,
-        lockedAt: row.locked_at,
-        lockedBy: row.locked_by,
-        contentHash: row.content_hash,
-        templateKey: row.template_key,
-        designOptions: row.design_options,
-        canvasLayoutJson: row.canvas_layout_json,
-        useCanvasLayout: row.use_canvas_layout,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
+      return mapBulletinToDetail(result.rows[0]);
     }),
 
   // Create new bulletin issue
@@ -200,10 +196,7 @@ export const bulletinsRouter = router({
       const existing = await queryWithTenant(tenantId, existingQuery, [serviceDate]);
 
       if (existing.rows.length > 0) {
-        throw new TRPCError({
-          code: 'CONFLICT',
-          message: 'Bulletin already exists for this service date',
-        });
+        throw conflict('Bulletin', 'Already exists for this service date');
       }
 
       const insertQuery = `
@@ -221,25 +214,13 @@ export const bulletinsRouter = router({
           updated_at
       `;
 
-      const result = await queryWithTenant<BulletinIssue>(
+      const result = await queryWithTenant<BulletinIssueRow>(
         tenantId,
         insertQuery,
         [tenantId, serviceDate, 'draft']
       );
 
-      const row = result.rows[0];
-      return {
-        id: row.id,
-        tenantId: row.tenant_id,
-        serviceDate: row.issue_date,
-        status: row.status,
-        lockedAt: null,
-        lockedBy: null,
-        pdfUrl: null,
-        slidesUrl: null,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
+      return mapBulletinToCreateResponse(result.rows[0]);
     }),
 
   // Update bulletin issue
@@ -314,8 +295,8 @@ export const bulletinsRouter = router({
       return { success: true };
     }),
 
-  // Delete bulletin (soft delete)
-  delete: protectedProcedure
+  // Delete bulletin (soft delete) - requires editor role
+  delete: editorProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.tenantId!;
@@ -346,9 +327,11 @@ export const bulletinsRouter = router({
         });
       }
 
+      // Set both deleted_at and status='deleted' to satisfy the CHECK constraint
+      // and maintain consistency between the two soft-delete mechanisms
       const deleteQuery = `
         UPDATE bulletin_issue
-        SET deleted_at = NOW()
+        SET deleted_at = NOW(), status = 'deleted'
         WHERE id = $1 AND deleted_at IS NULL
       `;
 
@@ -357,8 +340,8 @@ export const bulletinsRouter = router({
       return { success: true };
     }),
 
-  // Lock bulletin (Admin only - requires re-auth in production)
-  lock: protectedProcedure
+  // Lock bulletin - requires editor role
+  lock: editorProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.tenantId!;
@@ -433,7 +416,7 @@ export const bulletinsRouter = router({
           AND deleted_at IS NULL
       `;
 
-      const bulletinResult = await db.query<BulletinIssue>(bulletinQuery, [input.token]);
+      const bulletinResult = await db.query<BulletinIssueRow>(bulletinQuery, [input.token]);
 
       if (bulletinResult.rows.length === 0) {
         throw new TRPCError({
@@ -465,19 +448,7 @@ export const bulletinsRouter = router({
         ORDER BY order_index
       `;
 
-      const itemsResult = await db.query<{
-        id: string;
-        item_type: string;
-        title: string;
-        description: string | null;
-        order_index: number;
-        duration_minutes: number | null;
-        leader_name: string | null;
-        song_id: string | null;
-        ccli_number: string | null;
-        scripture_reference: string | null;
-        notes: string | null;
-      }>(itemsQuery, [row.id]);
+      const itemsResult = await db.query<ServiceItemRow>(itemsQuery, [row.id]);
 
       // Get org branding from brand_pack
       let orgBranding: {
@@ -536,38 +507,8 @@ export const bulletinsRouter = router({
       }
 
       return {
-        bulletin: {
-          id: row.id,
-          tenantId: row.tenant_id,
-          serviceDate: row.issue_date,
-          status: row.status,
-          brandPackId: row.brand_pack_id,
-          pdfUrl: row.pdf_url,
-          pdfLargePrintUrl: row.pdf_large_print_url,
-          slidesJson: row.slides_json,
-          templateKey: row.template_key,
-          designOptions: row.design_options,
-          canvasLayoutJson: row.canvas_layout_json,
-          useCanvasLayout: row.use_canvas_layout,
-          isPublished: row.is_published,
-          isPublic: row.is_public,
-          publishedAt: row.published_at,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-        },
-        serviceItems: itemsResult.rows.map((item) => ({
-          id: item.id,
-          itemType: item.item_type,
-          title: item.title,
-          description: item.description,
-          orderIndex: item.order_index,
-          durationMinutes: item.duration_minutes,
-          speaker: item.leader_name,
-          songId: item.song_id,
-          ccliNumber: item.ccli_number,
-          scriptureText: item.scripture_reference,
-          notes: item.notes,
-        })),
+        bulletin: mapBulletinToPublic(row),
+        serviceItems: itemsResult.rows.map(mapServiceItemToPublic),
         orgBranding,
       };
     }),
@@ -586,7 +527,7 @@ export const bulletinsRouter = router({
         WHERE id = $1 AND deleted_at IS NULL
       `;
 
-      const result = await queryWithTenant<BulletinIssue>(tenantId, queryText, [input.bulletinId]);
+      const result = await queryWithTenant<BulletinIssueRow>(tenantId, queryText, [input.bulletinId]);
 
       if (result.rows.length === 0) {
         throw new TRPCError({
@@ -604,8 +545,8 @@ export const bulletinsRouter = router({
       };
     }),
 
-  // Save generator payload for a bulletin
-  saveGeneratorPayload: protectedProcedure
+  // Save generator payload for a bulletin - requires editor role
+  saveGeneratorPayload: editorProcedure
     .input(
       z.object({
         bulletinId: z.string().uuid(),
@@ -692,8 +633,8 @@ export const bulletinsRouter = router({
         [input.bulletinId]
       );
 
-      const missingCcli = parseInt(ccliResult.rows[0]?.missing_ccli || '0', 10);
-      const itemCount = parseInt(itemsResult.rows[0]?.item_count || '0', 10);
+      const missingCcli = pgCountToNumber(ccliResult.rows[0]?.missing_ccli);
+      const itemCount = pgCountToNumber(itemsResult.rows[0]?.item_count);
 
       const preflight = {
         isValid: missingCcli === 0 && itemCount > 0,
@@ -704,8 +645,8 @@ export const bulletinsRouter = router({
       return { success: true, preflight };
     }),
 
-  // Generate bulletin from service items
-  generateFromService: protectedProcedure
+  // Generate bulletin from service items - requires editor role
+  generateFromService: editorProcedure
     .input(z.object({ bulletinId: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.tenantId!;
@@ -886,7 +827,7 @@ export const bulletinsRouter = router({
       const errors: string[] = [];
       const warnings: string[] = [];
 
-      const missingCcli = parseInt(ccliResult.rows[0]?.missing_ccli || '0', 10);
+      const missingCcli = pgCountToNumber(ccliResult.rows[0]?.missing_ccli);
       if (missingCcli > 0) {
         errors.push(`${missingCcli} song(s) are missing CCLI numbers`);
       }
@@ -904,7 +845,7 @@ export const bulletinsRouter = router({
         [input.bulletinId]
       );
 
-      const itemCount = parseInt(itemsResult.rows[0]?.item_count || '0', 10);
+      const itemCount = pgCountToNumber(itemsResult.rows[0]?.item_count);
       if (itemCount === 0) {
         warnings.push('No service items added to this bulletin');
       }
@@ -1087,7 +1028,7 @@ export const bulletinsRouter = router({
         WHERE id = $1 AND deleted_at IS NULL
       `;
 
-      const prevResult = await queryWithTenant<BulletinIssue>(
+      const prevResult = await queryWithTenant<BulletinIssueRow>(
         tenantId,
         prevQuery,
         [input.previousBulletinId]
@@ -1142,7 +1083,7 @@ export const bulletinsRouter = router({
           updated_at
       `;
 
-      const result = await queryWithTenant<BulletinIssue>(
+      const result = await queryWithTenant<BulletinIssueRow>(
         tenantId,
         insertQuery,
         [
@@ -1156,19 +1097,7 @@ export const bulletinsRouter = router({
         ]
       );
 
-      const row = result.rows[0];
-      return {
-        id: row.id,
-        tenantId: row.tenant_id,
-        serviceDate: row.issue_date,
-        status: row.status,
-        brandPackId: row.brand_pack_id,
-        templateKey: row.template_key,
-        designOptions: row.design_options,
-        useCanvasLayout: row.use_canvas_layout,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
+      return mapBulletinFromPrevious(result.rows[0]);
     }),
 
   // Copy settings from another bulletin
@@ -1221,7 +1150,7 @@ export const bulletinsRouter = router({
         WHERE id = $1 AND deleted_at IS NULL
       `;
 
-      const sourceResult = await queryWithTenant<BulletinIssue>(
+      const sourceResult = await queryWithTenant<BulletinIssueRow>(
         tenantId,
         sourceQuery,
         [input.sourceBulletinId]

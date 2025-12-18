@@ -2,6 +2,7 @@ import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
 import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
 
 export interface Song {
   id: string;
@@ -199,7 +200,7 @@ export const songsRouter = router({
 
       return {
         songs: dataResult.rows.map(transformSong),
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 
@@ -325,7 +326,7 @@ export const songsRouter = router({
         [id]
       );
 
-      const referenceCount = parseInt(referencesCheck.rows[0].count, 10);
+      const referenceCount = pgCountToNumber(referencesCheck.rows[0].count);
 
       if (referenceCount > 0) {
         // Null out the song_id on service items instead of blocking deletion

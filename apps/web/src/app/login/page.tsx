@@ -75,14 +75,17 @@ export default function LoginPage() {
                   <p className="text-sm font-semibold text-yellow-800 mb-2">
                     Development Mode Active
                   </p>
-                  <p className="text-sm text-yellow-700 mb-2">Test accounts:</p>
+                  <p className="text-sm text-yellow-700 mb-2">Test accounts (passwords in .env.development.local):</p>
                   <ul className="text-sm text-yellow-700 space-y-1">
-                    <li>• admin@dev.com / admin</li>
-                    <li>• editor@dev.com / editor</li>
-                    <li>• submitter@dev.com / submitter</li>
-                    <li>• viewer@dev.com / viewer</li>
-                    <li>• kiosk@dev.com / kiosk</li>
+                    <li>• admin@dev.com (Admin)</li>
+                    <li>• editor@dev.com (Editor)</li>
+                    <li>• submitter@dev.com (Submitter)</li>
+                    <li>• viewer@dev.com (Viewer)</li>
+                    <li>• kiosk@dev.com (Kiosk)</li>
                   </ul>
+                  <p className="text-xs text-yellow-600 mt-2">
+                    See docs/DEV-ACCOUNTS.md for setup instructions.
+                  </p>
                 </div>
 
                 <form onSubmit={handleDevLogin} className="space-y-6">

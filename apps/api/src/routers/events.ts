@@ -2,6 +2,7 @@ import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
 import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
 
 interface Event {
   id: string;
@@ -22,12 +23,18 @@ interface Event {
   deleted_at: Date | null;
 }
 
+// Date string validator: accepts YYYY-MM-DD or ISO datetime (YYYY-MM-DDTHH:mm:ss.sssZ)
+const dateStringSchema = z.string().refine(
+  (val) => /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/.test(val),
+  { message: 'Invalid date format. Use YYYY-MM-DD or ISO datetime' }
+);
+
 export const eventsRouter = router({
   list: protectedProcedure
     .input(
       z.object({
-        startDate: z.string().datetime().optional(),
-        endDate: z.string().datetime().optional(),
+        startDate: dateStringSchema.optional(),
+        endDate: dateStringSchema.optional(),
         limit: z.number().min(1).max(100).default(50),
       })
     )
@@ -104,7 +111,7 @@ export const eventsRouter = router({
           createdAt: row.created_at,
           updatedAt: row.updated_at,
         })),
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 

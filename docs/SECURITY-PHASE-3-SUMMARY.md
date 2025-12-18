@@ -6,6 +6,8 @@ Phase 3 is complete. Security baselines are now enforced through tests, CI, and 
 
 ## 1. Security Tests
 
+**Full documentation:** [SECURITY-TESTS.md](SECURITY-TESTS.md)
+
 **Commands**
 
 ```bash
@@ -22,12 +24,14 @@ Security tests run automatically via the security-tests job in .github/workflows
 
 **Current Status**
 
-36 tests passing, covering:
+75 tests passing across 3 suites, covering:
 
-- SQL injection protections
+- SQL injection protections (RLS, parameterized queries)
 - Platform role enforcement and tenant creation authorization
 - Error handling sanitization (prod vs dev)
-- CSRF behavior
+- CSRF protection via Bearer token model
+- Bulletin generator RBAC and tenant isolation
+- Locked bulletin protection
 
 ---
 

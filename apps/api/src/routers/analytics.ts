@@ -2,6 +2,7 @@ import { router, viewerProcedure } from '../trpc';
 import { z } from 'zod';
 import { queryWithTenant } from '../db';
 import { logger } from '../utils/logger';
+import { pgCountToNumber, pgDecimalToNumber } from '../lib/dbNumeric';
 
 // ============================================================================
 // Types
@@ -172,10 +173,10 @@ export const analyticsRouter = router({
       };
 
       return {
-        sessionsCount: parseInt(row.sessions_count, 10),
-        avgPlannedMinutes: Math.round(parseFloat(row.avg_planned_seconds) / 60),
-        avgActualMinutes: Math.round(parseFloat(row.avg_actual_seconds) / 60),
-        avgDeltaMinutes: Math.round(parseFloat(row.avg_delta_seconds) / 60),
+        sessionsCount: pgCountToNumber(row.sessions_count),
+        avgPlannedMinutes: Math.round(pgDecimalToNumber(row.avg_planned_seconds) / 60),
+        avgActualMinutes: Math.round(pgDecimalToNumber(row.avg_actual_seconds) / 60),
+        avgDeltaMinutes: Math.round(pgDecimalToNumber(row.avg_delta_seconds) / 60),
       };
     }),
 
@@ -247,10 +248,10 @@ export const analyticsRouter = router({
         preachers: result.rows.map((row) => ({
           preacherId: row.preacher, // Use preacher name as ID since it's a string field
           preacherName: row.preacher,
-          sessionsCount: parseInt(row.sessions_count, 10),
-          avgPlannedMinutes: Math.round(parseFloat(row.avg_planned_seconds) / 60),
-          avgActualMinutes: Math.round(parseFloat(row.avg_actual_seconds) / 60),
-          avgDeltaMinutes: Math.round(parseFloat(row.avg_delta_seconds) / 60),
+          sessionsCount: pgCountToNumber(row.sessions_count),
+          avgPlannedMinutes: Math.round(pgDecimalToNumber(row.avg_planned_seconds) / 60),
+          avgActualMinutes: Math.round(pgDecimalToNumber(row.avg_actual_seconds) / 60),
+          avgDeltaMinutes: Math.round(pgDecimalToNumber(row.avg_delta_seconds) / 60),
         })),
       };
     }),
@@ -326,10 +327,10 @@ export const analyticsRouter = router({
         series: result.rows.map((row) => ({
           seriesId: row.series_id,
           seriesName: row.series_title,
-          sessionsCount: parseInt(row.sessions_count, 10),
-          avgPlannedMinutes: Math.round(parseFloat(row.avg_planned_seconds) / 60),
-          avgActualMinutes: Math.round(parseFloat(row.avg_actual_seconds) / 60),
-          avgDeltaMinutes: Math.round(parseFloat(row.avg_delta_seconds) / 60),
+          sessionsCount: pgCountToNumber(row.sessions_count),
+          avgPlannedMinutes: Math.round(pgDecimalToNumber(row.avg_planned_seconds) / 60),
+          avgActualMinutes: Math.round(pgDecimalToNumber(row.avg_actual_seconds) / 60),
+          avgDeltaMinutes: Math.round(pgDecimalToNumber(row.avg_delta_seconds) / 60),
         })),
       };
     }),
@@ -401,10 +402,10 @@ export const analyticsRouter = router({
       return {
         serviceSlots: result.rows.map((row) => ({
           serviceSlot: row.service_slot,
-          sessionsCount: parseInt(row.sessions_count, 10),
-          avgPlannedMinutes: Math.round(parseFloat(row.avg_planned_seconds) / 60),
-          avgActualMinutes: Math.round(parseFloat(row.avg_actual_seconds) / 60),
-          avgDeltaMinutes: Math.round(parseFloat(row.avg_delta_seconds) / 60),
+          sessionsCount: pgCountToNumber(row.sessions_count),
+          avgPlannedMinutes: Math.round(pgDecimalToNumber(row.avg_planned_seconds) / 60),
+          avgActualMinutes: Math.round(pgDecimalToNumber(row.avg_actual_seconds) / 60),
+          avgDeltaMinutes: Math.round(pgDecimalToNumber(row.avg_delta_seconds) / 60),
         })),
       };
     }),
@@ -514,9 +515,9 @@ export const analyticsRouter = router({
           seriesId: row.series_id,
           seriesName: row.series_title,
           sermonTitle: row.sermon_title,
-          plannedMinutes: Math.round(parseInt(row.planned_seconds, 10) / 60),
-          actualMinutes: Math.round(parseInt(row.actual_seconds, 10) / 60),
-          deltaMinutes: Math.round(parseInt(row.delta_seconds, 10) / 60),
+          plannedMinutes: Math.round(pgDecimalToNumber(row.planned_seconds) / 60),
+          actualMinutes: Math.round(pgDecimalToNumber(row.actual_seconds) / 60),
+          deltaMinutes: Math.round(pgDecimalToNumber(row.delta_seconds) / 60),
         })),
       };
     }),

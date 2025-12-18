@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import {
@@ -17,13 +19,26 @@ import {
   BookOpen,
   Lightbulb,
   StickyNote,
+  Music,
+  Heading1,
+  CircleDot,
 } from 'lucide-react';
 import { getEffectiveBlockType } from '@elder-first/types';
-import type { SermonBlockType, SermonOutlinePoint } from '@elder-first/types';
+import type { SermonBlockType, SermonOutlinePoint, SermonPlan, SermonElement } from '@elder-first/types';
+import {
+  buildPreachModeBlocks,
+  PREACH_MODE_STYLES,
+  ELEMENT_COLORS,
+  getElementDisplayText,
+  getElementNote,
+  getElementTypeLabel,
+  type PreachModeBlock,
+} from '@/lib/sermonPlanRenderer';
 
 interface PreachModeProps {
   sermon: any; // Using any for now to avoid strict type issues during dev, will refine
   onExit: () => void;
+  plan?: SermonPlan | null; // Phase 9: Optional SermonPlan for structured navigation
 }
 
 // Block type styling configuration for PreachMode
@@ -59,7 +74,17 @@ const BLOCK_STYLES: Record<SermonBlockType, {
   },
 };
 
-export function PreachMode({ sermon, onExit }: PreachModeProps) {
+// Icon component mapping for SermonElement types
+const ELEMENT_ICONS: Record<SermonElement['type'], React.ReactNode> = {
+  section: <Heading1 size={20} />,
+  point: <CircleDot size={20} />,
+  note: <StickyNote size={20} />,
+  scripture: <BookOpen size={20} />,
+  hymn: <Music size={20} />,
+  illustration: <Lightbulb size={20} />,
+};
+
+export function PreachMode({ sermon, onExit, plan }: PreachModeProps) {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [fontSize, setFontSize] = useState(24);
   const [currentBlockIndex, setCurrentBlockIndex] = useState(0);
@@ -72,11 +97,19 @@ export function PreachMode({ sermon, onExit }: PreachModeProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [targetMinutes, setTargetMinutes] = useState<number | null>(null);
 
-  // Flatten sermon into "blocks" for the view
-  // Maps mainPoints with their type info, plus header and conclusion
-  const hasMainPoints = sermon.outline?.mainPoints && sermon.outline.mainPoints.length > 0;
+  // Phase 9: Use SermonPlan if available, otherwise fall back to legacy mainPoints
+  // Priority: SermonPlan > legacy mainPoints > fallback
+  const hasSermonPlan = plan && plan.elements && plan.elements.length > 0;
+  const hasMainPoints = !hasSermonPlan && sermon.outline?.mainPoints && sermon.outline.mainPoints.length > 0;
 
-  const blocks = hasMainPoints
+  // Build blocks based on available data source
+  const blocks: PreachModeBlock[] | Array<{
+    type: 'header' | 'point' | 'conclusion' | 'fallback';
+    content: any;
+    blockType?: SermonBlockType;
+  }> = hasSermonPlan
+    ? buildPreachModeBlocks(sermon, plan)
+    : hasMainPoints
     ? [
         { type: 'header' as const, content: { title: sermon.title, scripture: sermon.primary_scripture } },
         ...(sermon.outline?.mainPoints?.map((p: SermonOutlinePoint) => ({
@@ -326,8 +359,48 @@ export function PreachMode({ sermon, onExit }: PreachModeProps) {
                 {currentBlock.content.scripture && (
                   <p className="text-[0.8em] opacity-70 font-mono">{currentBlock.content.scripture}</p>
                 )}
+                {/* Phase 9: Show bigIdea if available from SermonPlan */}
+                {currentBlock.content.bigIdea && (
+                  <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-purple-900/30' : 'bg-purple-50'}`}>
+                    <p className="text-[0.85em] italic">{currentBlock.content.bigIdea}</p>
+                  </div>
+                )}
               </div>
             )}
+
+            {/* Phase 9: SermonPlan element rendering */}
+            {currentBlock.type === 'element' && (() => {
+              const block = currentBlock as PreachModeBlock & { type: 'element' };
+              const element = block.element;
+              const elementStyle = PREACH_MODE_STYLES[element.type];
+              const colorClass = isDarkMode
+                ? ELEMENT_COLORS[element.type].dark
+                : ELEMENT_COLORS[element.type].light;
+
+              return (
+                <div className={`space-y-4 ${elementStyle.containerClass}`}>
+                  {elementStyle.dividerClass && <div className={elementStyle.dividerClass} />}
+
+                  {/* Element Type Badge */}
+                  <div className="flex items-center gap-2 opacity-60 text-[0.5em]">
+                    {ELEMENT_ICONS[element.type]}
+                    <span className="uppercase tracking-wider">{getElementTypeLabel(element.type)}</span>
+                  </div>
+
+                  {/* Main Content */}
+                  <h2 className={`${elementStyle.labelClass} ${colorClass}`}>
+                    {getElementDisplayText(element)}
+                  </h2>
+
+                  {/* Additional note if present */}
+                  {getElementNote(element) && (
+                    <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-100'} text-[0.75em] opacity-80`}>
+                      <p className="whitespace-pre-wrap">{getElementNote(element)}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {currentBlock.type === 'point' && (() => {
               const blockType = (currentBlock as any).blockType as SermonBlockType;
@@ -384,7 +457,10 @@ export function PreachMode({ sermon, onExit }: PreachModeProps) {
                 <h2 className={`font-bold text-[1.2em] ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
                   Conclusion
                 </h2>
-                <p className="text-[0.9em]">{currentBlock.content.text}</p>
+                {/* Phase 9: Show notes from SermonPlan or legacy text */}
+                {(currentBlock.content.notes || currentBlock.content.text) && (
+                  <p className="text-[0.9em]">{currentBlock.content.notes || currentBlock.content.text}</p>
+                )}
               </div>
             )}
 
@@ -448,6 +524,12 @@ export function PreachMode({ sermon, onExit }: PreachModeProps) {
 
         <div className="text-sm opacity-50 flex flex-col items-center">
           <span>{currentBlockIndex + 1} / {blocks.length}</span>
+          {/* Phase 9: Show element type for SermonPlan elements */}
+          {hasSermonPlan && currentBlock.type === 'element' && (
+            <span className="text-xs opacity-70 uppercase">
+              {getElementTypeLabel((currentBlock as PreachModeBlock & { type: 'element' }).element.type)}
+            </span>
+          )}
           {hasMainPoints && currentBlock.type === 'point' && (
             <span className="text-xs opacity-70 uppercase">
               {(currentBlock as any).blockType}

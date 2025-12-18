@@ -353,6 +353,170 @@ describe('SermonHelperAISuggestions - Display Logic', () => {
 });
 
 // =============================================================================
+// ILLUSTRATION SUGGESTIONS (Phase 7)
+// =============================================================================
+
+describe('SermonHelperAISuggestions - Illustration Suggestions', () => {
+  describe('addIllustration', () => {
+    /**
+     * Mirrors addIllustration logic from the component
+     */
+    function createIllustrationElement(title: string, summary: string): SermonElement {
+      return {
+        id: mockGenerateId(),
+        type: 'illustration',
+        title,
+        note: summary,
+      };
+    }
+
+    it('creates illustration element with title and summary', () => {
+      const element = createIllustrationElement(
+        'The Prodigal Son',
+        'A father welcomes back his wayward son with open arms'
+      );
+
+      expect(element.type).toBe('illustration');
+      if (element.type === 'illustration') {
+        expect(element.title).toBe('The Prodigal Son');
+        expect(element.note).toBe('A father welcomes back his wayward son with open arms');
+      }
+    });
+
+    it('creates illustration with empty summary', () => {
+      const element = createIllustrationElement('The Good Samaritan', '');
+
+      if (element.type === 'illustration') {
+        expect(element.title).toBe('The Good Samaritan');
+        expect(element.note).toBe('');
+      }
+    });
+
+    it('generates unique IDs for multiple illustrations', () => {
+      const el1 = createIllustrationElement('Story 1', 'Summary 1');
+      const el2 = createIllustrationElement('Story 2', 'Summary 2');
+
+      expect(el1.id).not.toBe(el2.id);
+    });
+  });
+
+  describe('illustration suggestions display', () => {
+    const mockSuggestionsWithIllustrations: SermonHelperSuggestions = {
+      scriptureSuggestions: [],
+      outline: [],
+      applicationIdeas: [],
+      hymnThemes: [],
+      illustrationSuggestions: [
+        {
+          id: 'ill-1',
+          title: 'C.S. Lewis Conversion',
+          summary: 'The reluctant convert who described himself as the most dejected and reluctant convert in all England',
+          forSection: 'Introduction',
+        },
+        {
+          id: 'ill-2',
+          title: 'The Diamond in the Rough',
+          summary: 'A story about finding value in unexpected places',
+        },
+      ],
+    };
+
+    it('shows illustration section when suggestions exist', () => {
+      expect(mockSuggestionsWithIllustrations.illustrationSuggestions!.length > 0).toBe(true);
+    });
+
+    it('hides illustration section when empty', () => {
+      const emptySuggestions: SermonHelperSuggestions = {
+        ...mockSuggestionsWithIllustrations,
+        illustrationSuggestions: [],
+      };
+      expect(emptySuggestions.illustrationSuggestions!.length > 0).toBe(false);
+    });
+
+    it('hides illustration section when undefined', () => {
+      const noIllustrations: SermonHelperSuggestions = {
+        scriptureSuggestions: [],
+        outline: [],
+      };
+      // Component checks: suggestions.illustrationSuggestions && suggestions.illustrationSuggestions.length > 0
+      const shouldShow = noIllustrations.illustrationSuggestions && noIllustrations.illustrationSuggestions.length > 0;
+      expect(shouldShow).toBeFalsy();
+    });
+
+    it('displays forSection badge when section is specified', () => {
+      const illustrationWithSection = mockSuggestionsWithIllustrations.illustrationSuggestions![0];
+      expect(illustrationWithSection.forSection).toBe('Introduction');
+    });
+
+    it('omits forSection badge when section is not specified', () => {
+      const illustrationWithoutSection = mockSuggestionsWithIllustrations.illustrationSuggestions![1];
+      expect(illustrationWithoutSection.forSection).toBeUndefined();
+    });
+
+    it('uses illustration id as unique key', () => {
+      const ids = mockSuggestionsWithIllustrations.illustrationSuggestions!.map(i => i.id);
+      const uniqueIds = new Set(ids);
+      expect(uniqueIds.size).toBe(ids.length);
+    });
+  });
+
+  describe('illustration integration with response', () => {
+    it('includes illustrationSuggestions in full response', () => {
+      const mockResponse = {
+        suggestions: {
+          scriptureSuggestions: [{ reference: 'John 3:16', reason: 'Central gospel' }],
+          outline: [{ type: 'section' as const, title: 'Introduction' }],
+          applicationIdeas: [{ audience: 'all', idea: 'Apply grace' }],
+          hymnThemes: [{ theme: 'grace', reason: 'Theme of sermon' }],
+          illustrationSuggestions: [
+            { id: 'ill-1', title: 'Story One', summary: 'A powerful story about faith' },
+          ],
+        },
+        meta: {
+          fallback: false,
+          tokensUsed: 600,
+          model: 'gpt-4o-mini',
+        },
+      };
+
+      expect(mockResponse.suggestions.illustrationSuggestions).toHaveLength(1);
+      expect(mockResponse.suggestions.illustrationSuggestions![0].title).toBe('Story One');
+    });
+
+    it('handles response without illustrationSuggestions (backward compatible)', () => {
+      const mockResponse: {
+        suggestions: {
+          scriptureSuggestions: never[];
+          outline: never[];
+          applicationIdeas: never[];
+          hymnThemes: never[];
+          illustrationSuggestions?: unknown[];
+        };
+        meta: { fallback: boolean; tokensUsed: number; model: string };
+      } = {
+        suggestions: {
+          scriptureSuggestions: [],
+          outline: [],
+          applicationIdeas: [],
+          hymnThemes: [],
+          // illustrationSuggestions not included
+        },
+        meta: {
+          fallback: false,
+          tokensUsed: 100,
+          model: 'gpt-4o-mini',
+        },
+      };
+
+      // Component checks: suggestions.illustrationSuggestions && suggestions.illustrationSuggestions.length > 0
+      const shouldShowSection = mockResponse.suggestions.illustrationSuggestions &&
+                                mockResponse.suggestions.illustrationSuggestions.length > 0;
+      expect(shouldShowSection).toBeFalsy();
+    });
+  });
+});
+
+// =============================================================================
 // PRIMARY SCRIPTURE DEFAULT
 // =============================================================================
 

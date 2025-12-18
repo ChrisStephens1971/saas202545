@@ -2,6 +2,7 @@ import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
 import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
 
 interface Person {
   id: string;
@@ -108,7 +109,7 @@ export const peopleRouter = router({
           createdAt: row.created_at,
           updatedAt: row.updated_at,
         })),
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
         limit,
         offset,
       };

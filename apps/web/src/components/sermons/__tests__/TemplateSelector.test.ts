@@ -522,3 +522,468 @@ describe('TemplateSelector - Query Configuration', () => {
     });
   });
 });
+
+// ============================================================================
+// STYLE PROFILE TESTS (Phase 6)
+// ============================================================================
+
+// StyleProfile type and labels (mirroring packages/types/src/index.ts)
+type SermonStyleProfile =
+  | 'story_first_3_point'
+  | 'expository_verse_by_verse'
+  | 'topical_teaching';
+
+const SermonStyleProfileLabels: Record<SermonStyleProfile, string> = {
+  story_first_3_point: 'Story-First 3-Point',
+  expository_verse_by_verse: 'Expository Verse-by-Verse',
+  topical_teaching: 'Topical Teaching',
+};
+
+// Extended template list with styleProfile
+interface TemplateListItemWithStyle {
+  id: string;
+  name: string;
+  defaultTitle: string;
+  defaultPrimaryText: string;
+  tags: string[];
+  styleProfile: SermonStyleProfile | null;
+  createdAt: string;
+}
+
+const mockTemplateListWithStyles: TemplateListItemWithStyle[] = [
+  {
+    id: uuid1,
+    name: '3-Point Expository Template',
+    defaultTitle: 'New Expository Sermon',
+    defaultPrimaryText: 'Romans 8:28',
+    tags: ['expository', 'pauline', 'romans'],
+    styleProfile: 'expository_verse_by_verse',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: uuid2,
+    name: 'Narrative Preaching Template',
+    defaultTitle: 'Story of Grace',
+    defaultPrimaryText: 'Luke 15:11-32',
+    tags: ['narrative', 'gospel', 'parables'],
+    styleProfile: 'story_first_3_point',
+    createdAt: '2025-01-05T00:00:00Z',
+  },
+  {
+    id: uuid3,
+    name: 'Gospel Sermon Template',
+    defaultTitle: 'Good News Proclamation',
+    defaultPrimaryText: 'John 3:16',
+    tags: ['gospel', 'salvation', 'evangelism'],
+    styleProfile: null, // No style assigned
+    createdAt: '2025-01-08T00:00:00Z',
+  },
+  {
+    id: '44444444-4444-4444-4444-444444444444',
+    name: 'Topical Doctrine Template',
+    defaultTitle: 'Doctrine Series',
+    defaultPrimaryText: 'Titus 2:11',
+    tags: ['topical', 'doctrine'],
+    styleProfile: 'topical_teaching',
+    createdAt: '2025-01-10T00:00:00Z',
+  },
+];
+
+describe('TemplateSelector - StyleProfile Badge Display', () => {
+  describe('badge rendering logic', () => {
+    it('shows badge for template with story_first_3_point style', () => {
+      const template = mockTemplateListWithStyles[1];
+      const badgeText = template.styleProfile
+        ? SermonStyleProfileLabels[template.styleProfile]
+        : null;
+
+      expect(badgeText).toBe('Story-First 3-Point');
+    });
+
+    it('shows badge for template with expository_verse_by_verse style', () => {
+      const template = mockTemplateListWithStyles[0];
+      const badgeText = template.styleProfile
+        ? SermonStyleProfileLabels[template.styleProfile]
+        : null;
+
+      expect(badgeText).toBe('Expository Verse-by-Verse');
+    });
+
+    it('shows badge for template with topical_teaching style', () => {
+      const template = mockTemplateListWithStyles[3];
+      const badgeText = template.styleProfile
+        ? SermonStyleProfileLabels[template.styleProfile]
+        : null;
+
+      expect(badgeText).toBe('Topical Teaching');
+    });
+
+    it('returns null for template without styleProfile', () => {
+      const template = mockTemplateListWithStyles[2];
+      const badgeText = template.styleProfile
+        ? SermonStyleProfileLabels[template.styleProfile]
+        : null;
+
+      expect(badgeText).toBeNull();
+    });
+
+    it('conditionally renders badge based on styleProfile presence', () => {
+      const shouldShowBadge = (
+        template: TemplateListItemWithStyle
+      ): boolean => {
+        return template.styleProfile !== null;
+      };
+
+      expect(shouldShowBadge(mockTemplateListWithStyles[0])).toBe(true);
+      expect(shouldShowBadge(mockTemplateListWithStyles[1])).toBe(true);
+      expect(shouldShowBadge(mockTemplateListWithStyles[2])).toBe(false);
+      expect(shouldShowBadge(mockTemplateListWithStyles[3])).toBe(true);
+    });
+  });
+
+  describe('badge styling logic', () => {
+    it('uses appropriate color for story_first_3_point', () => {
+      const getBadgeColor = (style: SermonStyleProfile): string => {
+        switch (style) {
+          case 'story_first_3_point':
+            return 'blue';
+          case 'expository_verse_by_verse':
+            return 'green';
+          case 'topical_teaching':
+            return 'purple';
+          default:
+            return 'gray';
+        }
+      };
+
+      expect(getBadgeColor('story_first_3_point')).toBe('blue');
+    });
+
+    it('uses appropriate color for expository_verse_by_verse', () => {
+      const getBadgeColor = (style: SermonStyleProfile): string => {
+        switch (style) {
+          case 'story_first_3_point':
+            return 'blue';
+          case 'expository_verse_by_verse':
+            return 'green';
+          case 'topical_teaching':
+            return 'purple';
+          default:
+            return 'gray';
+        }
+      };
+
+      expect(getBadgeColor('expository_verse_by_verse')).toBe('green');
+    });
+
+    it('uses appropriate color for topical_teaching', () => {
+      const getBadgeColor = (style: SermonStyleProfile): string => {
+        switch (style) {
+          case 'story_first_3_point':
+            return 'blue';
+          case 'expository_verse_by_verse':
+            return 'green';
+          case 'topical_teaching':
+            return 'purple';
+          default:
+            return 'gray';
+        }
+      };
+
+      expect(getBadgeColor('topical_teaching')).toBe('purple');
+    });
+  });
+});
+
+describe('TemplateSelector - StyleProfile Filtering', () => {
+  // Extended filter function that includes styleProfile
+  function filterTemplatesWithStyle(
+    templates: TemplateListItemWithStyle[],
+    searchTerm: string,
+    styleFilter: SermonStyleProfile | null = null
+  ): TemplateListItemWithStyle[] {
+    let filtered = templates;
+
+    // Filter by style first if specified
+    if (styleFilter !== null) {
+      filtered = filtered.filter((t) => t.styleProfile === styleFilter);
+    }
+
+    // Then apply text search
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          t.name.toLowerCase().includes(search) ||
+          t.defaultTitle.toLowerCase().includes(search) ||
+          t.tags.some((tag) => tag.toLowerCase().includes(search)) ||
+          (t.styleProfile &&
+            SermonStyleProfileLabels[t.styleProfile]
+              .toLowerCase()
+              .includes(search))
+      );
+    }
+
+    return filtered;
+  }
+
+  describe('filter by styleProfile only', () => {
+    it('filters to story_first_3_point templates only', () => {
+      const result = filterTemplatesWithStyle(
+        mockTemplateListWithStyles,
+        '',
+        'story_first_3_point'
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Narrative Preaching Template');
+    });
+
+    it('filters to expository_verse_by_verse templates only', () => {
+      const result = filterTemplatesWithStyle(
+        mockTemplateListWithStyles,
+        '',
+        'expository_verse_by_verse'
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('3-Point Expository Template');
+    });
+
+    it('filters to topical_teaching templates only', () => {
+      const result = filterTemplatesWithStyle(
+        mockTemplateListWithStyles,
+        '',
+        'topical_teaching'
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Topical Doctrine Template');
+    });
+
+    it('returns all templates when no style filter', () => {
+      const result = filterTemplatesWithStyle(
+        mockTemplateListWithStyles,
+        '',
+        null
+      );
+
+      expect(result).toHaveLength(4);
+    });
+  });
+
+  describe('search includes styleProfile label', () => {
+    it('finds templates by searching style label "Story"', () => {
+      const result = filterTemplatesWithStyle(
+        mockTemplateListWithStyles,
+        'story',
+        null
+      );
+
+      // Matches: "Narrative Preaching Template" (story_first_3_point label = "Story-First 3-Point")
+      // Also matches: "Story of Grace" (defaultTitle)
+      expect(result.length).toBeGreaterThanOrEqual(1);
+      expect(result.some((t) => t.styleProfile === 'story_first_3_point')).toBe(
+        true
+      );
+    });
+
+    it('finds templates by searching "Expository"', () => {
+      const result = filterTemplatesWithStyle(
+        mockTemplateListWithStyles,
+        'expository',
+        null
+      );
+
+      // Matches: "3-Point Expository Template" (name contains "Expository")
+      // Also matches via style label "Expository Verse-by-Verse"
+      expect(result.length).toBeGreaterThanOrEqual(1);
+      expect(
+        result.some((t) => t.styleProfile === 'expository_verse_by_verse')
+      ).toBe(true);
+    });
+
+    it('finds templates by searching "Topical"', () => {
+      const result = filterTemplatesWithStyle(
+        mockTemplateListWithStyles,
+        'topical',
+        null
+      );
+
+      // Matches via tag "topical" and style label "Topical Teaching"
+      expect(result.length).toBeGreaterThanOrEqual(1);
+      expect(result.some((t) => t.styleProfile === 'topical_teaching')).toBe(
+        true
+      );
+    });
+
+    it('finds templates by partial style label "Verse"', () => {
+      const result = filterTemplatesWithStyle(
+        mockTemplateListWithStyles,
+        'verse',
+        null
+      );
+
+      // Matches: style label "Expository Verse-by-Verse" contains "Verse"
+      expect(result.length).toBeGreaterThanOrEqual(1);
+      expect(
+        result.some((t) => t.styleProfile === 'expository_verse_by_verse')
+      ).toBe(true);
+    });
+  });
+
+  describe('combined style filter and text search', () => {
+    it('filters by style AND text search', () => {
+      // Filter to story_first_3_point and search for "grace"
+      const result = filterTemplatesWithStyle(
+        mockTemplateListWithStyles,
+        'grace',
+        'story_first_3_point'
+      );
+
+      // Should match: "Narrative Preaching Template" with defaultTitle "Story of Grace"
+      expect(result).toHaveLength(1);
+      expect(result[0].defaultTitle).toBe('Story of Grace');
+    });
+
+    it('returns empty when style filter and search have no overlap', () => {
+      // Filter to topical_teaching but search for "romans" (expository template)
+      const result = filterTemplatesWithStyle(
+        mockTemplateListWithStyles,
+        'romans',
+        'topical_teaching'
+      );
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('searches within style-filtered subset', () => {
+      // Add a second expository template for this test
+      const templatesWithTwoExpository: TemplateListItemWithStyle[] = [
+        ...mockTemplateListWithStyles,
+        {
+          id: '55555555-5555-5555-5555-555555555555',
+          name: 'Another Expository Template',
+          defaultTitle: 'Deep Dive Study',
+          defaultPrimaryText: 'Hebrews 1:1',
+          tags: ['expository', 'hebrews'],
+          styleProfile: 'expository_verse_by_verse',
+          createdAt: '2025-01-12T00:00:00Z',
+        },
+      ];
+
+      // Filter to expository and search for "hebrews"
+      const result = filterTemplatesWithStyle(
+        templatesWithTwoExpository,
+        'hebrews',
+        'expository_verse_by_verse'
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Another Expository Template');
+    });
+  });
+});
+
+describe('TemplateSelector - StyleProfile Selection State', () => {
+  it('selected template includes styleProfile', () => {
+    const selectedTemplate = mockTemplateListWithStyles[0];
+
+    expect(selectedTemplate.styleProfile).toBe('expository_verse_by_verse');
+  });
+
+  it('applying template preserves styleProfile', () => {
+    const templateToApply = mockTemplateListWithStyles[1];
+
+    // When applying template to plan
+    const appliedStyleProfile = templateToApply.styleProfile;
+
+    expect(appliedStyleProfile).toBe('story_first_3_point');
+  });
+
+  it('applies null styleProfile correctly', () => {
+    const templateWithoutStyle = mockTemplateListWithStyles[2];
+
+    const appliedStyleProfile = templateWithoutStyle.styleProfile;
+
+    expect(appliedStyleProfile).toBeNull();
+  });
+});
+
+describe('TemplateSelector - StyleProfile UI Helper Functions', () => {
+  it('counts templates by style', () => {
+    const countByStyle = (
+      templates: TemplateListItemWithStyle[]
+    ): Record<SermonStyleProfile | 'none', number> => {
+      const counts: Record<SermonStyleProfile | 'none', number> = {
+        story_first_3_point: 0,
+        expository_verse_by_verse: 0,
+        topical_teaching: 0,
+        none: 0,
+      };
+
+      templates.forEach((t) => {
+        if (t.styleProfile) {
+          counts[t.styleProfile]++;
+        } else {
+          counts.none++;
+        }
+      });
+
+      return counts;
+    };
+
+    const counts = countByStyle(mockTemplateListWithStyles);
+
+    expect(counts.story_first_3_point).toBe(1);
+    expect(counts.expository_verse_by_verse).toBe(1);
+    expect(counts.topical_teaching).toBe(1);
+    expect(counts.none).toBe(1);
+  });
+
+  it('groups templates by style', () => {
+    const groupByStyle = (
+      templates: TemplateListItemWithStyle[]
+    ): Map<SermonStyleProfile | null, TemplateListItemWithStyle[]> => {
+      const groups = new Map<
+        SermonStyleProfile | null,
+        TemplateListItemWithStyle[]
+      >();
+
+      templates.forEach((t) => {
+        const style = t.styleProfile;
+        if (!groups.has(style)) {
+          groups.set(style, []);
+        }
+        groups.get(style)!.push(t);
+      });
+
+      return groups;
+    };
+
+    const groups = groupByStyle(mockTemplateListWithStyles);
+
+    expect(groups.get('story_first_3_point')).toHaveLength(1);
+    expect(groups.get('expository_verse_by_verse')).toHaveLength(1);
+    expect(groups.get('topical_teaching')).toHaveLength(1);
+    expect(groups.get(null)).toHaveLength(1);
+  });
+
+  it('gets unique styles from template list', () => {
+    const getUniqueStyles = (
+      templates: TemplateListItemWithStyle[]
+    ): (SermonStyleProfile | null)[] => {
+      const styles = new Set<SermonStyleProfile | null>();
+      templates.forEach((t) => styles.add(t.styleProfile));
+      return Array.from(styles);
+    };
+
+    const styles = getUniqueStyles(mockTemplateListWithStyles);
+
+    expect(styles).toContain('story_first_3_point');
+    expect(styles).toContain('expository_verse_by_verse');
+    expect(styles).toContain('topical_teaching');
+    expect(styles).toContain(null);
+    expect(styles).toHaveLength(4);
+  });
+});

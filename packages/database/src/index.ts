@@ -21,8 +21,17 @@ export function createPool(config?: DatabaseConfig): Pool {
   return new Pool(poolConfig);
 }
 
+/**
+ * Set tenant context for RLS (Row-Level Security).
+ *
+ * SECURITY FIX (LOW-001, 2025-12-06): Uses parameterized set_config to prevent SQL injection.
+ * The third parameter 'true' makes the setting LOCAL (transaction-scoped).
+ *
+ * @param pool - PostgreSQL connection pool
+ * @param tenantId - UUID of the tenant to set as context
+ */
 export async function setTenantContext(pool: Pool, tenantId: string): Promise<void> {
-  await pool.query(`SET app.tenant_id = '${tenantId}'`);
+  await pool.query('SELECT set_config($1, $2, true)', ['app.tenant_id', tenantId]);
 }
 
 export async function healthCheck(pool: Pool): Promise<boolean> {

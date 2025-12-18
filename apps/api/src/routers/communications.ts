@@ -2,6 +2,7 @@ import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
 import { queryWithTenant, QueryParam } from '../db';
 import { TRPCError } from '@trpc/server';
+import { pgCountToNumber } from '../lib/dbNumeric';
 
 export const communicationsRouter = router({
   // ============================================================================
@@ -58,7 +59,7 @@ export const communicationsRouter = router({
 
       return {
         templates: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 
@@ -252,7 +253,7 @@ export const communicationsRouter = router({
 
       return {
         campaigns: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 
@@ -463,7 +464,7 @@ export const communicationsRouter = router({
 
       return {
         logs: result.rows,
-        total: parseInt(countResult.rows[0].total, 10),
+        total: pgCountToNumber(countResult.rows[0].total),
       };
     }),
 

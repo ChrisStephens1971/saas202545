@@ -9,7 +9,7 @@ import { useAuth, useRole } from '@/hooks/useAuth';
 export function Header() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
-  const { isAdmin, isEditor, isKiosk } = useRole();
+  const { isAdmin, isEditor, isSubmitter, isKiosk } = useRole();
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/login' });
@@ -44,6 +44,12 @@ export function Header() {
                 Bulletins
               </Link>
               <Link
+                href="/sermons"
+                className="text-lg font-medium text-gray-700 hover:text-primary-600 transition-colors"
+              >
+                Sermons
+              </Link>
+              <Link
                 href="/people"
                 className="text-lg font-medium text-gray-700 hover:text-primary-600 transition-colors"
               >
@@ -61,6 +67,15 @@ export function Header() {
               >
                 Prayers
               </Link>
+              {/* Only show Thank-Yous for Admin/Editor/Submitter */}
+              {isSubmitter() && (
+                <Link
+                  href="/thank-yous"
+                  className="text-lg font-medium text-gray-700 hover:text-primary-600 transition-colors"
+                >
+                  Thank-Yous
+                </Link>
+              )}
               {/* Only show Donations for Admin/Editor */}
               {(isAdmin() || isEditor()) && (
                 <Link

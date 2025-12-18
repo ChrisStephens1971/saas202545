@@ -1,0 +1,22 @@
+{
+  "name": "@elder-first/planner-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reusable planner core logic for service/event planning applications",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./itemTypes": "./src/itemTypes.ts",
+    "./time": "./src/time.ts",
+    "./outline": "./src/outline.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

@@ -7,6 +7,9 @@
  *
  * Test Framework: Playwright Test
  * Environment: Staging (pointing to test database)
+ *
+ * NOTE: If running Playwright via AI agents / MCP (e.g., Playwright MCP),
+ * see docs/mcp/PLAYWRIGHT-GUARDRAILS.md for required staging-only, test-account-only rules.
  */
 
 import { test, expect, Page } from '@playwright/test';

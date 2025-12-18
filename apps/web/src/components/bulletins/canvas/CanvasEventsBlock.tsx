@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { trpc } from '@/lib/trpc/client';
 import { format } from 'date-fns';
 import type { CanvasBlockRendererProps, EventsBlockData } from './types';
@@ -17,22 +18,31 @@ export function CanvasEventsBlock({ block }: CanvasBlockRendererProps) {
     dateRange = 'month',
   } = data;
 
-  // Calculate date range
-  const now = new Date();
-  const endDate = new Date();
-  if (dateRange === 'week') {
-    endDate.setDate(endDate.getDate() + 7);
-  } else if (dateRange === 'month') {
-    endDate.setMonth(endDate.getMonth() + 1);
-  } else {
-    endDate.setFullYear(endDate.getFullYear() + 1); // 'all' = next year
-  }
+  // Memoize date range to prevent unstable query keys
+  const queryDates = useMemo(() => {
+    const now = new Date();
+    const endDate = new Date();
+    if (dateRange === 'week') {
+      endDate.setDate(endDate.getDate() + 7);
+    } else if (dateRange === 'month') {
+      endDate.setMonth(endDate.getMonth() + 1);
+    } else {
+      endDate.setFullYear(endDate.getFullYear() + 1); // 'all' = next year
+    }
+    return {
+      startDate: now.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    };
+  }, [dateRange]);
 
-  const { data: events, isLoading } = trpc.events.list.useQuery({
-    limit: maxItems,
-    startDate: now.toISOString(),
-    endDate: endDate.toISOString(),
-  });
+  const { data: events, isLoading } = trpc.events.list.useQuery(
+    {
+      limit: maxItems,
+      startDate: queryDates.startDate,
+      endDate: queryDates.endDate,
+    },
+    { staleTime: 30000 }
+  );
 
   if (isLoading) {
     return (

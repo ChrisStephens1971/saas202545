@@ -1,8 +1,8 @@
-# Sermon Helper UI - Phase 2 Implementation
+# Sermon Helper UI - Phase 9 Implementation
 
 ## Overview
 
-The Sermon Helper UI provides a tabbed interface for pastors to prepare sermons with AI-assisted suggestions, hymn discovery, and outline management. This document covers the Phase 2 UI implementation.
+The Sermon Helper UI provides a tabbed interface for pastors to prepare sermons with AI-assisted suggestions, hymn discovery, and outline management. This document covers the UI implementation through Phase 9 (Preach Mode & Print from SermonPlan).
 
 ## Architecture
 
@@ -16,7 +16,9 @@ apps/web/src/app/sermons/[id]/
     ├── SermonHelperPanel.tsx   # Main container with tab navigation
     ├── SermonHelperAISuggestions.tsx  # AI suggestions tab
     ├── SermonHelperHymnFinder.tsx     # Hymn search tab
-    └── SermonHelperOutline.tsx        # Outline editor tab
+    ├── SermonHelperOutline.tsx        # Outline editor tab
+    ├── ManuscriptImportModal.tsx      # Import manuscript modal
+    └── GenerateDraftModal.tsx         # Phase 8: Generate preaching draft modal
 ```
 
 ### Data Flow
@@ -77,6 +79,7 @@ Provides AI-powered sermon preparation assistance:
 - **Scripture Suggestions:** Related verses for the sermon theme
 - **Outline Skeleton:** Suggested structure with sections and points
 - **Application Ideas:** Practical application suggestions
+- **Illustration Suggestions:** Style-aware illustration recommendations (Phase 7)
 - **Hymn Themes:** Thematic hymn recommendations
 
 **Backend Integration:**
@@ -94,9 +97,26 @@ await suggestions.mutateAsync({
 - `scriptures` - Related scripture passages
 - `outline` - Sermon structure suggestions
 - `applications` - Practical application ideas
+- `illustrations` - Style-aware illustration ideas (Phase 7)
 - `hymns` - Thematic hymn recommendations
 
 Each suggestion type has an "Add to Outline" button that creates appropriate `SermonElement` entries.
+
+**Illustration Suggestions (Phase 7):**
+
+The Illustration Suggestions section displays AI-generated illustration ideas shaped by the sermon's `styleProfile`:
+
+| Style | Illustration Focus |
+|-------|-------------------|
+| Story-First 3-Point | Narrative illustrations, personal stories, emotional connections |
+| Expository Verse-by-Verse | Text-focused illustrations, historical context, word meanings |
+| Topical Teaching | Contemporary life situations, practical applications |
+
+Each illustration displays:
+- **Title:** Brief illustration name
+- **Summary:** Description of the illustration
+- **For Section Badge:** (optional) Target section for the illustration
+- **Add Button:** Creates an `illustration` element in the outline
 
 **Guardrail Banners:**
 
@@ -168,6 +188,7 @@ Full-featured outline editor:
 | `note` | `text` | Italic, yellow styling |
 | `scripture` | `reference`, `note` | Bold reference, purple styling |
 | `hymn` | `hymnId`, `title`, `note` | Music icon, teal styling |
+| `illustration` | `title`, `note` | Quote icon, orange styling (Phase 7) |
 
 **Operations:**
 - **Add:** Dropdown menu for element types
@@ -185,6 +206,92 @@ interface SermonHelperOutlineProps {
 }
 ```
 
+### GenerateDraftModal (Phase 8)
+
+**Location:** `_components/GenerateDraftModal.tsx`
+
+AI-powered preaching draft generation from an existing SermonPlan:
+
+**Purpose:**
+- Generates a full preaching manuscript (markdown) from the sermon plan
+- Draft is ephemeral (not stored in database) - copy for use elsewhere
+- Respects all existing guardrails (restricted topics, political filtering)
+- Shaped by theology profile (tradition, style, Bible translation)
+
+**Props:**
+```typescript
+interface GenerateDraftModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  sermonId: string;
+  sermonTitle: string;
+}
+```
+
+**Usage:**
+```tsx
+<GenerateDraftModal
+  isOpen={isGenerateDraftModalOpen}
+  onClose={() => setIsGenerateDraftModalOpen(false)}
+  sermonId={sermonId}
+  sermonTitle={sermon.title}
+/>
+```
+
+**State Management:**
+```typescript
+const [generatedDraft, setGeneratedDraft] = useState<SermonDraft | null>(null);
+const [politicalContentDetected, setPoliticalContentDetected] = useState(false);
+const [error, setError] = useState<string | null>(null);
+const [copied, setCopied] = useState(false);
+```
+
+**Backend Integration:**
+```typescript
+const generateMutation = trpc.sermonHelper.generateDraftFromPlan.useMutation({
+  onSuccess: (data) => {
+    setGeneratedDraft(data.draft);
+    setPoliticalContentDetected(data.meta.politicalContentDetected ?? false);
+    setError(null);
+  },
+  onError: (err) => {
+    setError(err.message || 'Failed to generate draft');
+  },
+});
+```
+
+**Modal Flow:**
+1. **Auto-Generate on Open:** When modal opens, immediately triggers generation
+2. **Loading State:** Shows spinner with "Generating your preaching draft..."
+3. **Success State:** Displays draft with metadata badges and copy button
+4. **Error State:** Shows error message with helpful hints based on error type
+5. **Regenerate:** Button to generate a new draft
+
+**Display Elements:**
+
+| Element | Description |
+|---------|-------------|
+| Success Banner | Green banner confirming draft generation |
+| Political Filter Banner | Blue banner when content was filtered (optional) |
+| Style Profile Badge | Purple badge showing sermon style (e.g., "story first 3 point") |
+| Theology Tradition Badge | Gray badge showing tradition (e.g., "Reformed Baptist") |
+| Character Count | Gray badge showing manuscript length |
+| Manuscript Viewer | Pre-formatted markdown content with scroll |
+| Copy Button | One-click copy to clipboard with feedback |
+
+**Error Handling:**
+
+| Error Type | Display |
+|------------|---------|
+| Restricted Topic | Amber banner explaining topic is blocked by church settings |
+| No Sermon Plan | Blue banner with instructions to create plan first |
+| AI Quota Exceeded | Red error showing monthly limit reached |
+| Configuration Error | Red error with link to settings |
+| Generic API Error | Red error with retry suggestion |
+
+**Privacy Note:**
+The modal footer displays "Generated with AI - Not stored in database" to remind users that drafts are ephemeral and not persisted.
+
 ## SermonElement Type
 
 Defined in `@elder-first/types`:
@@ -195,7 +302,8 @@ type SermonElement =
   | { id: string; type: 'point'; text: string }
   | { id: string; type: 'note'; text: string }
   | { id: string; type: 'scripture'; reference: string; note?: string }
-  | { id: string; type: 'hymn'; hymnId: string; title: string; note?: string };
+  | { id: string; type: 'hymn'; hymnId: string; title: string; note?: string }
+  | { id: string; type: 'illustration'; title: string; note?: string };  // Phase 7 addition
 ```
 
 ## Export to Markdown
@@ -233,14 +341,49 @@ cd packages/types && npm test
 ```
 
 **Test Coverage:**
-- Element creation (all 5 types)
+- Element creation (all 6 types including illustration)
 - Element updates (partial updates, preserving other fields)
 - Element deletion
 - Element reordering (moveUp, moveDown, boundary conditions)
 - Markdown export (all element types, ordering, edge cases)
 - Type guards (discriminated union validation)
+- Illustration suggestions (Phase 7)
+  - Add illustration element
+  - Display illustration suggestions
+  - forSection badge handling
 
-**Total Tests:** 32 tests covering all outline operations
+**Total Tests:** 41 tests covering all outline operations
+
+### GenerateDraftModal Tests (Phase 8)
+
+**Location:** `apps/web/src/app/sermons/[id]/_components/__tests__/GenerateDraftModal.test.ts`
+
+```bash
+cd apps/web && npm test -- GenerateDraftModal
+```
+
+**Test Coverage (44 tests):**
+
+| Category | Tests |
+|----------|-------|
+| SermonDraft Structure | 13 tests - field validation, style profiles, required fields |
+| Meta Response Structure | 7 tests - tokensUsed, model, politicalContentDetected |
+| Component State Logic | 8 tests - modal state machine, copy to clipboard |
+| Error Handling | 8 tests - restricted topics, no plan, quota, configuration |
+| Draft Content Validation | 4 tests - markdown format, style profile formatting |
+| Political Content Filtering | 2 tests - filtered content detection, clean content |
+| Privacy and Ephemeral Nature | 2 tests - no database fields, no input storage |
+| Regeneration Flow | 3 tests - state reset, button visibility |
+
+**Key Test Scenarios:**
+1. Complete draft with all fields validates correctly
+2. Minimal draft with required fields only validates
+3. Invalid style profiles are rejected
+4. Modal state transitions (loading → success → regenerate)
+5. Political content warning when detected
+6. Error states for various failure modes
+7. Clipboard copy functionality
+8. Draft privacy verification (ephemeral, not stored)
 
 ## Integration Points
 
@@ -261,12 +404,16 @@ The panel is integrated in `page.tsx`:
 
 ### Backend tRPC Routes
 
-The UI calls these backend routes (Phase 1):
+The UI calls these backend routes:
 
-| Route | Purpose |
-|-------|---------|
-| `sermonHelper.getAISuggestions` | Get AI suggestions based on sermon context |
-| `sermonHelper.searchHymns` | Search hymn library |
+| Route | Phase | Purpose |
+|-------|-------|---------|
+| `sermonHelper.getAISuggestions` | 1 | Get AI suggestions based on sermon context |
+| `sermonHelper.searchHymns` | 1 | Search hymn library |
+| `sermonHelper.savePlan` | 2 | Save/update a sermon plan |
+| `sermonHelper.getPlan` | 2, 9 | Retrieve saved sermon plan (used by Preach/Print in Phase 9) |
+| `sermonHelper.extractPlanFromManuscript` | 6 | Import manuscript and extract structure |
+| `sermonHelper.generateDraftFromPlan` | 8 | Generate preaching manuscript from plan |
 
 See `SERMON-HELPER-BACKEND.md` for backend documentation.
 
@@ -362,13 +509,177 @@ The Theology QA Harness is an internal admin tool for testing AI guardrails and 
 
 ---
 
+## Preach Mode & Print View (Phase 9)
+
+Phase 9 enables Preach Mode and Print View to render directly from `SermonPlan.elements`, providing a unified presentation experience across the sermon workflow.
+
+### Architecture
+
+```
+apps/web/src/
+├── app/sermons/[id]/
+│   ├── preach/page.tsx          # Preach Mode page (fullscreen)
+│   └── print/page.tsx           # Print-optimized page
+├── components/sermons/
+│   └── PreachMode.tsx           # Main Preach Mode component
+└── lib/
+    └── sermonPlanRenderer.ts    # Shared rendering logic
+```
+
+### Rendering Logic
+
+The `sermonPlanRenderer.ts` module provides shared rendering utilities for both Preach Mode and Print View:
+
+**Exported Functions:**
+
+| Function | Purpose |
+|----------|---------|
+| `buildPreachModeBlocks()` | Converts SermonPlan to navigation blocks |
+| `filterPrintableElements()` | Filters elements for print output |
+| `getElementDisplayText()` | Extracts primary display text from any element |
+| `getElementNote()` | Extracts secondary/note text |
+| `getPointNumberInSection()` | Calculates point numbering within sections |
+| `hasPlanContent()` | Checks if plan has displayable content |
+| `formatSupportingTexts()` | Formats supporting texts as comma-separated list |
+
+**Style Configurations:**
+
+| Export | Description |
+|--------|-------------|
+| `PREACH_MODE_STYLES` | Font sizes, classes, dividers for each element type |
+| `PRINT_STYLES` | Print-optimized styling with labels |
+| `ELEMENT_COLORS` | Color scheme for element type badges (light/dark mode) |
+
+### Preach Mode
+
+**Location:** `/sermons/[id]/preach`
+
+The Preach Mode provides a fullscreen, distraction-free view for delivering sermons:
+
+**Features:**
+- Block-based navigation with keyboard support (← →)
+- Timer with overtime detection
+- Progress indicator showing current position
+- Fullscreen mode toggle
+- Dark mode support
+- Section headers and point numbering
+
+**Data Priority:**
+1. SermonPlan (if available)
+2. Legacy `sermon.outline.mainPoints` (fallback)
+3. Fallback mode (title + manuscript)
+
+**Block Types:**
+
+| Block Type | Content |
+|------------|---------|
+| `header` | Sermon title, scripture, big idea |
+| `element` | Any SermonElement (section, point, scripture, etc.) |
+| `conclusion` | Notes from plan or default conclusion |
+| `fallback` | Basic content when no structured data |
+
+**Element Type Icons:**
+
+| Type | Icon | Color |
+|------|------|-------|
+| `section` | Heading1 | Purple |
+| `point` | CircleDot | Blue |
+| `scripture` | BookOpen | Amber |
+| `hymn` | Music | Teal |
+| `illustration` | Lightbulb | Green |
+| `note` | StickyNote | Gray |
+
+**Props:**
+```typescript
+interface PreachModeProps {
+  sermon: {
+    title: string;
+    primary_scripture?: string | null;
+    target_minutes?: number | null;
+    manuscript?: string | null;
+    outline?: { mainPoints?: any[] } | null;
+  };
+  onExit: () => void;
+  plan?: SermonPlan | null;  // Phase 9: Optional SermonPlan
+}
+```
+
+### Print View
+
+**Location:** `/sermons/[id]/print`
+
+The Print View provides a clean, print-optimized rendering:
+
+**Features:**
+- Respects `print.css` styling
+- Point numbering within sections
+- Element type labels (Scripture, Illustration, Note, Hymn)
+- Supporting texts display
+- Notes section in footer
+- Optimized for letter-size paper
+
+**Print Styling:**
+
+| Element Type | Label | Style |
+|--------------|-------|-------|
+| `section` | *(none)* | Bold, large text |
+| `point` | *(none)* | Bold with number badge |
+| `scripture` | Scripture | Italic, border-left accent |
+| `hymn` | Hymn | Standard font |
+| `illustration` | Illustration | Gray text, indented |
+| `note` | Note | Small text, indented |
+
+**Rendering Priority:**
+1. SermonPlan with `SermonPlanPrintContent` component
+2. Legacy rendering from `sermon.outline.mainPoints`
+
+### Testing
+
+**Test Files:**
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `lib/__tests__/sermonPlanRenderer.test.ts` | 64 tests | All renderer functions |
+| `components/sermons/__tests__/PreachMode.logic.test.ts` | 32 tests | Block construction, navigation, SermonPlan handling |
+
+**Test Categories:**
+
+- Element text extraction (section, point, note, scripture, hymn, illustration)
+- Block construction from SermonPlan
+- Fallback behavior when plan is null or empty
+- Point numbering within sections
+- Style configuration completeness
+- Navigation logic
+
+**Running Tests:**
+```bash
+cd apps/web && npx jest --testPathPattern="sermonPlanRenderer|PreachMode.logic"
+```
+
+### Backend Integration
+
+Both views fetch SermonPlan via tRPC:
+
+```typescript
+const { data: plan } = trpc.sermonHelper.getPlan.useQuery(
+  { sermonId },
+  { enabled: !!sermonId }
+);
+```
+
+---
+
 ## Future Enhancements
 
-Potential Phase 3+ features:
+Potential future features:
 - Drag-and-drop reordering
 - Undo/redo support
 - Auto-save to sermon record
 - Template outlines
-- Scripture text preview
+- Scripture text preview (ESV API integration)
 - Hymn lyrics preview
-- Print-optimized view
+- Draft editing within modal (Phase 10?)
+- Draft storage with version history (Phase 10?)
+- Export to Word/Google Docs format
+- Preach Mode gesture controls (swipe navigation)
+- Print view customization options
