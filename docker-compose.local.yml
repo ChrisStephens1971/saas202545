@@ -1,0 +1,56 @@
+# Local Development Docker Compose
+# Project: Elder-First Church Platform
+# Generated: 2025-12-18
+# Scaffold: local-dev-bootstrap:v1
+#
+# Usage:
+#   docker-compose -f docker-compose.local.yml up -d
+#
+# This file defines local development services that don't require cloud connectivity.
+# Customize the services below based on your project's needs.
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database (uncomment if needed)
+  # db:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     POSTGRES_USER: dev
+  #     POSTGRES_PASSWORD: devpassword
+  #     POSTGRES_DB: elder-first-church-platform_dev
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U dev"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # Redis Cache (uncomment if needed)
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # Mailhog for email testing (uncomment if needed)
+  # mailhog:
+  #   image: mailhog/mailhog
+  #   ports:
+  #     - "1025:1025"  # SMTP
+  #     - "8025:8025"  # Web UI
+
+# volumes:
+#   postgres_data:
+
+# Networks (uncomment if you need to connect to external services)
+# networks:
+#   default:
+#     name: elder-first-church-platform_network
