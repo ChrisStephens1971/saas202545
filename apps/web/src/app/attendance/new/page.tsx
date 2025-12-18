@@ -169,7 +169,7 @@ export default function NewAttendanceSessionPage() {
 
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>Note:</strong> After creating the session, you'll be able to check people
+                <strong>Note:</strong> After creating the session, you&apos;ll be able to check people
                 in and track attendance counts automatically.
               </p>
             </div>
