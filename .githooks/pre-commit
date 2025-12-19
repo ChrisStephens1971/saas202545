@@ -1,4 +1,68 @@
 #!/bin/bash
+# VERDAIO_BASELINE_BYPASS_BEGIN
+# Fleet Ops Baseline Commit Bypass (v1)
+# This block allows baseline automation to commit specific files without
+# triggering the rest of the pre-commit hook. Normal commits are unaffected.
+#
+# Usage: VERDAIO_BASELINE_COMMIT=1 git commit -m "baseline: ..."
+# Docs:  docs/ops/GIT-HOOKS-BASELINE.md
+#
+if [ "$VERDAIO_BASELINE_COMMIT" = "1" ]; then
+  # Get list of staged files
+  STAGED_FILES=$(git diff --cached --name-only)
+
+  # Define allowlist patterns (baseline artifacts only)
+  # Root-level baseline artifacts
+  ALLOWLIST_EXACT="docker-compose.local.yml LOCAL-DEV-BOOTSTRAP.md LOCAL-DEV-BOOTSTRAP.VERSION .env.example .gitignore README.md STATUS.md CHANGELOG.md AI-UPGRADES-LOG.md"
+  # Directory prefixes
+  ALLOWLIST_PREFIXES="docs/ .github/workflows/ scripts/ci/ scripts/dev/"
+
+  DISALLOWED=""
+  for file in $STAGED_FILES; do
+    ALLOWED=0
+
+    # Check exact matches
+    for allowed_file in $ALLOWLIST_EXACT; do
+      if [ "$file" = "$allowed_file" ]; then
+        ALLOWED=1
+        break
+      fi
+    done
+
+    # Check prefix matches
+    if [ "$ALLOWED" = "0" ]; then
+      for prefix in $ALLOWLIST_PREFIXES; do
+        case "$file" in
+          $prefix*) ALLOWED=1; break ;;
+        esac
+      done
+    fi
+
+    # Track disallowed files
+    if [ "$ALLOWED" = "0" ]; then
+      DISALLOWED="$DISALLOWED $file"
+    fi
+  done
+
+  if [ -n "$DISALLOWED" ]; then
+    echo "[VERDAIO_BASELINE_BYPASS] ERROR: The following files are not allowed in baseline commits:"
+    for file in $DISALLOWED; do
+      echo "  - $file"
+    done
+    echo ""
+    echo "Baseline commits may only include: docs, CI/scripts, and root config files."
+    echo "For code changes, remove VERDAIO_BASELINE_COMMIT=1 and run the full hook."
+    exit 1
+  fi
+
+  echo "[VERDAIO_BASELINE_BYPASS] Baseline commit allowed. Staged files:"
+  for file in $STAGED_FILES; do
+    echo "  - $file"
+  done
+  exit 0
+fi
+# VERDAIO_BASELINE_BYPASS_END
+
 #
 # Pre-commit hook for documentation validation
 #
